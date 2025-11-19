@@ -122,7 +122,7 @@ class MCPServer:
             message: Parsed JSON-RPC message
 
         Returns:
-            JSON-RPC response or None
+            JSON-RPC response or None (for notifications)
         """
         # Validate JSON-RPC format
         if "jsonrpc" not in message or message["jsonrpc"] != "2.0":
@@ -136,16 +136,29 @@ class MCPServer:
         params = message.get("params", {})
         message_id = message.get("id")
 
+        # Check if this is a notification (no id field)
+        is_notification = "id" not in message
+
         if not method:
-            return self._create_error_response(
-                message_id=message_id,
-                code=-32600,
-                message="Invalid Request - missing method",
-            )
+            if not is_notification:
+                return self._create_error_response(
+                    message_id=message_id,
+                    code=-32600,
+                    message="Invalid Request - missing method",
+                )
+            return None
 
-        logger.debug(f"Handling method: {method}")
+        logger.debug(f"Handling method: {method} (notification: {is_notification})")
 
-        # Route to appropriate handler
+        # Handle notifications (don't send response)
+        if method.startswith("notifications/"):
+            logger.debug(f"Received notification: {method}")
+            # Handle notification but don't respond
+            if method == "notifications/initialized":
+                logger.info("Client initialized")
+            return None
+
+        # Route to appropriate handler (only for requests with id)
         try:
             if method == "initialize":
                 result = self.handle_initialize(params)
@@ -154,27 +167,33 @@ class MCPServer:
             elif method == "tools/call":
                 result = self.handle_tools_call(params)
             else:
-                return self._create_error_response(
-                    message_id=message_id,
-                    code=-32601,
-                    message=f"Method not found: {method}",
-                )
+                if not is_notification:
+                    return self._create_error_response(
+                        message_id=message_id,
+                        code=-32601,
+                        message=f"Method not found: {method}",
+                    )
+                return None
 
-            # Create success response
-            return {
-                "jsonrpc": "2.0",
-                "id": message_id,
-                "result": result,
-            }
+            # Create success response (only for requests, not notifications)
+            if not is_notification:
+                return {
+                    "jsonrpc": "2.0",
+                    "id": message_id,
+                    "result": result,
+                }
+            return None
 
         except Exception as e:
             logger.error(f"Error handling {method}: {e}", exc_info=True)
-            return self._create_error_response(
-                message_id=message_id,
-                code=-32603,
-                message="Internal error",
-                data=str(e),
-            )
+            if not is_notification:
+                return self._create_error_response(
+                    message_id=message_id,
+                    code=-32603,
+                    message="Internal error",
+                    data=str(e),
+                )
+            return None
 
     def handle_initialize(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """

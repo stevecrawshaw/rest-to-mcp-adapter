@@ -7,6 +7,7 @@ and response processing.
 
 import time
 import json
+import logging
 from typing import Any, Dict, Optional
 from dataclasses import dataclass
 
@@ -17,6 +18,8 @@ from ..parsing.canonical_models import CanonicalEndpoint
 from .auth import AuthHandler, NoAuth
 from .request_builder import RequestBuilder
 from .response import ResponseProcessor, ProcessedResponse
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -176,6 +179,12 @@ class APIExecutor:
         headers = request_details["headers"].copy()
         query_params = request_details["query_params"].copy()
         self.auth.apply(headers, query_params)
+
+        # Log request details for debugging
+        logger.debug(f"Request URL: {request_details['url']}")
+        logger.debug(f"Request Method: {request_details['method']}")
+        logger.debug(f"Request Headers: {headers}")
+        logger.debug(f"Request Body: {request_details['body']}")
 
         # Execute with retries
         for attempt in range(1, self.max_retries + 1):
