@@ -38,9 +38,19 @@ The **MCP integration layer** provides:
 - **Tool Registry**: Manage and organize generated tools
 - **Export Functionality**: Export tools to JSON for MCP agents
 
+### Phase 3: Runtime Execution Engine ✅ (Completed)
+
+The **runtime execution layer** provides:
+
+- **API Executor**: Execute actual REST API calls from canonical endpoints
+- **Authentication Handlers**: Support for API Key, Bearer, Basic, OAuth2
+- **Request Builder**: Build HTTP requests with path/query/header/body parameters
+- **Response Processor**: Parse and normalize API responses
+- **Error Handling**: Automatic retries with exponential backoff
+- **Comprehensive Examples**: Real-world usage patterns
+
 ### What's NOT Yet Implemented
 
-- ❌ Runtime REST execution engine (Phase 3)
 - ❌ Agent-facing MCP server (Phase 4)
 - ❌ LLM-based HTML/PDF parsing (Phase 5)
 - ❌ Extended loaders: Postman/GraphQL (Phase 6)
@@ -109,6 +119,11 @@ adapter/
 │   ├── tool_generator.py   # Convert endpoints to MCP tools
 │   ├── schema_converter.py # JSON Schema conversion
 │   └── tool_registry.py    # Tool management
+├── runtime/                # Runtime execution engine (Phase 3)
+│   ├── auth.py             # Authentication handlers
+│   ├── request_builder.py  # Build HTTP requests
+│   ├── executor.py         # Execute API calls
+│   └── response.py         # Response processing
 └── pipeline/               # Convenience helpers
     └── ingestion_pipeline.py # Helper functions
 ```
@@ -322,6 +337,101 @@ See `examples/phase2_mcp_tools.py` for comprehensive examples:
 python examples/phase2_mcp_tools.py
 ```
 
+### Phase 3: Runtime Execution
+
+Execute actual REST API calls using canonical endpoints:
+
+```python
+from adapter.ingestion import OpenAPILoader
+from adapter.parsing import Normalizer
+from adapter.runtime import APIExecutor, BearerAuth
+
+# Step 1: Load and normalize
+loader = OpenAPILoader()
+spec = loader.load("https://api.example.com/openapi.json")
+
+normalizer = Normalizer()
+endpoints = normalizer.normalize_openapi(spec)
+
+# Step 2: Configure authentication
+auth = BearerAuth(token="your-api-token")
+
+# Step 3: Create executor
+executor = APIExecutor(
+    base_url="https://api.example.com",
+    auth=auth,
+    max_retries=3,
+    timeout=30
+)
+
+# Step 4: Execute API calls
+result = executor.execute(
+    endpoint=endpoints[0],
+    parameters={"user_id": "123", "include": "profile"}
+)
+
+# Step 5: Handle response
+if result.success:
+    print(f"Data: {result.response.data}")
+    print(f"Time: {result.execution_time_ms}ms")
+else:
+    print(f"Error: {result.response.error}")
+```
+
+#### Authentication Options
+
+The runtime supports multiple authentication methods:
+
+```python
+from adapter.runtime import NoAuth, APIKeyAuth, BearerAuth, BasicAuth, OAuth2Auth
+
+# No authentication
+auth = NoAuth()
+
+# API Key in header
+auth = APIKeyAuth(key="your-key", location="header", name="X-API-Key")
+
+# API Key in query parameter
+auth = APIKeyAuth(key="your-key", location="query", name="api_key")
+
+# Bearer token
+auth = BearerAuth(token="your-bearer-token")
+
+# Basic authentication
+auth = BasicAuth(username="user", password="pass")
+
+# OAuth2
+auth = OAuth2Auth(access_token="your-oauth-token")
+```
+
+#### Error Handling and Retries
+
+The executor automatically retries on transient failures:
+
+```python
+executor = APIExecutor(
+    base_url="https://api.example.com",
+    max_retries=3,                          # Retry up to 3 times
+    retry_backoff=1.0,                      # Start with 1s, doubles each retry
+    retry_on_status_codes=[429, 500, 502, 503, 504],  # Retry these codes
+    timeout=30                              # Request timeout in seconds
+)
+
+result = executor.execute(endpoint=my_endpoint, parameters=params)
+
+print(f"Attempts: {result.attempts}")      # How many tries it took
+print(f"Success: {result.success}")        # Whether it succeeded
+print(f"Time: {result.execution_time_ms}ms")
+```
+
+#### Complete Phase 3 Examples
+
+See `examples/phase3_runtime_execution.py` for comprehensive examples:
+
+```bash
+python examples/phase3_runtime_execution.py
+```
+
 ## 🔌 Extensibility
 
 ### No Format Detection
@@ -497,13 +607,15 @@ All identifiers are converted to `snake_case`:
 - Tool registry with filtering and export
 - JSON Schema conversion for parameter validation
 
-### Phase 3: Runtime Execution Engine (Next)
-- REST API call execution
-- Authentication handling
-- Response processing
-- Error handling
+### Phase 3: Runtime Execution Engine ✅ (Completed)
+- REST API call execution with canonical endpoints
+- Authentication handling (API Key, Bearer, Basic, OAuth2)
+- Request building with parameter routing (path/query/header/body)
+- Response processing and parsing (JSON, text)
+- Error handling with automatic retries and exponential backoff
+- Comprehensive authentication options
 
-### Phase 4: Agent-Facing MCP Server
+### Phase 4: Agent-Facing MCP Server (Next)
 - Complete MCP server implementation
 - WebSocket/stdio transport
 - Tool discovery and execution
@@ -533,13 +645,15 @@ MIT License - see LICENSE file for details
 
 ## 🤝 Contributing
 
-Contributions are welcome! We've completed Phase 1 (Ingestion & Normalization) and Phase 2 (MCP Tool Generation). Phase 3 (Runtime Execution Engine) is next on the roadmap.
+Contributions are welcome! We've completed Phase 1 (Ingestion & Normalization), Phase 2 (MCP Tool Generation), and Phase 3 (Runtime Execution Engine). Phase 4 (MCP Server) is next on the roadmap.
 
 Areas for contribution:
+- MCP server implementation (Phase 4)
 - Additional loaders (Postman, GraphQL, etc.)
 - Recursive HTML crawling implementation
+- LLM-based extraction for unstructured docs
 - Enhanced normalization logic
-- Better error handling
+- Additional authentication methods
 - Documentation improvements
 - Test coverage
 
