@@ -37,16 +37,42 @@ This initial release provides the **foundation layer**:
 
 ## 📦 Installation
 
+### Using uv (Recommended)
+
 ```bash
 # Clone the repository
 git clone https://github.com/pawneetdev/rest-to-mcp-adapter.git
 cd rest-to-mcp-adapter
 
-# Install dependencies with uv
-uv pip install -e .
+# Create a virtual environment with uv
+uv venv
 
-# Or install dependencies directly
-uv add pydantic pyyaml beautifulsoup4 langchain-community requests
+# Activate the virtual environment
+# On Linux/Mac:
+source .venv/bin/activate
+# On Windows:
+# .venv\Scripts\activate
+
+# Install dependencies
+uv pip install -r requirements.txt
+```
+
+### Using pip (Alternative)
+
+```bash
+# Clone the repository
+git clone https://github.com/pawneetdev/rest-to-mcp-adapter.git
+cd rest-to-mcp-adapter
+
+# Create a virtual environment
+python -m venv .venv
+
+# Activate the virtual environment
+source .venv/bin/activate  # Linux/Mac
+# .venv\Scripts\activate  # Windows
+
+# Install dependencies
+pip install -r requirements.txt
 ```
 
 ### Dependencies
@@ -54,8 +80,8 @@ uv add pydantic pyyaml beautifulsoup4 langchain-community requests
 - **pydantic** ≥2.0.0 - Data validation and canonical models
 - **PyYAML** ≥6.0 - YAML parsing
 - **beautifulsoup4** ≥4.12.0 - HTML parsing
-- **langchain-community** ≥0.0.20 - LangChain integration (optional)
 - **requests** ≥2.31.0 - HTTP requests for URL loading
+- **langchain-community** ≥0.0.20 - LangChain integration (optional but recommended)
 
 ## 🏗️ Architecture
 
@@ -365,40 +391,40 @@ All identifiers are converted to `snake_case`:
 - Canonical models
 - Normalization pipeline
 
-### Phase 2: Extended Loaders (Next)
-- Postman collection loader (URL/file support)
-- GraphQL schema loader
-- Markdown documentation loader
-- PDF documentation loader (with LLM extraction)
-
-### Phase 3: LLM-Based Extraction
+### Phase 2: LLM-Based Extraction (Next)
 - HTML → structured endpoints (via LLM)
 - PDF → structured endpoints (via LLM)
 - Markdown → structured endpoints (via LLM)
 - Unstructured docs → structured endpoints
 
-### Phase 4: HTML Recursive Crawling
-- Implement recursive crawling for HTML loaders
-- Follow internal links across documentation sites
-- Deduplicate and aggregate content
-- Support configurable crawl depth and URL filtering
-
-### Phase 5: MCP Tool Generation
+### Phase 3: MCP Tool Generation
 - Generate MCP tool definitions from canonical endpoints
 - Tool metadata generation
 - Parameter validation schemas
 
-### Phase 6: Runtime Execution Engine
+### Phase 4: Runtime Execution Engine
 - REST API call execution
 - Authentication handling
 - Response processing
 - Error handling
 
-### Phase 7: Agent-Facing MCP Server
+### Phase 5: Agent-Facing MCP Server
 - Complete MCP server implementation
 - WebSocket/stdio transport
 - Tool discovery and execution
 - Integration with Claude/LLMs
+
+### Phase 6: Extended Loaders
+- Postman collection loader (URL/file support)
+- GraphQL schema loader
+- Markdown documentation loader
+- PDF documentation loader (with LLM extraction)
+
+### Phase 7: HTML Recursive Crawling
+- Implement recursive crawling for HTML loaders
+- Follow internal links across documentation sites
+- Deduplicate and aggregate content
+- Support configurable crawl depth and URL filtering
 
 ## 📄 License
 
