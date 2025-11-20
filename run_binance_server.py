@@ -9,23 +9,26 @@ Usage:
        python generate_binance_registry.py
 
     2. Then run the server:
-       # Method 1: Using environment variables
+       # Run from anywhere - auto-detects file locations
+       python /path/to/run_binance_server.py
+
+       # Or specify custom registry files
+       python run_binance_server.py --registry my_registry.json --endpoints my_endpoints.json
+
+       # Credentials: Method 1 - Environment variables
        export BINANCE_API_KEY="your_api_key"
        export BINANCE_API_SECRET="your_api_secret"
-       python run_binance_server.py
 
-       # Method 2: Using config file
+       # Credentials: Method 2 - Config file (in script directory or current directory)
        cp binance_config.json.example binance_config.json
-       # Edit binance_config.json with your credentials
-       python run_binance_server.py
-
-       # Method 3: Public endpoints only (no credentials)
-       python run_binance_server.py
+       # Edit with your credentials
 """
 
+import argparse
 import json
 import logging
 import os
+import sys
 from pathlib import Path
 
 from adapter import (
@@ -46,6 +49,46 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+
+def find_file(filename: str) -> Path:
+    """
+    Find a file by checking multiple locations.
+
+    Search order:
+    1. Current working directory
+    2. Script directory (where this script is located)
+    3. Raise error if not found
+
+    Args:
+        filename: Name of file to find
+
+    Returns:
+        Path to the found file
+
+    Raises:
+        FileNotFoundError: If file not found in any location
+    """
+    # Get script directory
+    script_dir = Path(__file__).parent.resolve()
+
+    # Search locations
+    search_paths = [
+        Path.cwd() / filename,           # Current directory
+        script_dir / filename,           # Script directory
+    ]
+
+    for path in search_paths:
+        if path.exists():
+            logger.debug(f"Found {filename} at: {path}")
+            return path
+
+    # Not found
+    raise FileNotFoundError(
+        f"Could not find '{filename}' in:\n"
+        f"  - Current directory: {Path.cwd()}\n"
+        f"  - Script directory: {script_dir}"
+    )
 
 
 def load_credentials():
@@ -69,26 +112,33 @@ def load_credentials():
         logger.info("✓ Loaded credentials from environment variables")
         return api_key, api_secret, base_url
 
-    # Try config file
-    config_path = Path("binance_config.json")
-    if config_path.exists():
-        try:
-            with open(config_path) as f:
-                config = json.load(f)
+    # Try config file (search in current dir and script dir)
+    script_dir = Path(__file__).parent.resolve()
+    config_paths = [
+        Path.cwd() / "binance_config.json",
+        script_dir / "binance_config.json",
+    ]
 
-            api_key = config.get("api_key")
-            api_secret = config.get("api_secret")
-            base_url = config.get("base_url", "https://api.binance.com")
+    for config_path in config_paths:
+        if config_path.exists():
+            try:
+                with open(config_path) as f:
+                    config = json.load(f)
 
-            if api_key and api_secret:
-                logger.info("✓ Loaded credentials from binance_config.json")
-                return api_key, api_secret, base_url
-            else:
-                logger.warning("⚠ binance_config.json exists but missing credentials")
-        except json.JSONDecodeError as e:
-            logger.error(f"❌ Failed to parse binance_config.json: {e}")
-        except Exception as e:
-            logger.error(f"❌ Error reading binance_config.json: {e}")
+                api_key = config.get("api_key")
+                api_secret = config.get("api_secret")
+                base_url = config.get("base_url", "https://api.binance.com")
+
+                if api_key and api_secret:
+                    logger.info(f"✓ Loaded credentials from {config_path}")
+                    return api_key, api_secret, base_url
+                else:
+                    logger.warning(f"⚠ {config_path} exists but missing credentials")
+            except json.JSONDecodeError as e:
+                logger.error(f"❌ Failed to parse {config_path}: {e}")
+            except Exception as e:
+                logger.error(f"❌ Error reading {config_path}: {e}")
+            break  # Only try first found config file
 
     # No credentials found
     logger.info("⚠ No API credentials found")
@@ -167,27 +217,51 @@ def load_endpoints_from_file(endpoints_file: str) -> list:
 def main():
     """Main function to run the Binance MCP server."""
 
-    # Configuration
-    REGISTRY_FILE = "binance_registry.json"
-    ENDPOINTS_FILE = "binance_endpoints.json"
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(
+        description="Run Binance MCP Server with pre-generated registry"
+    )
+    parser.add_argument(
+        "--registry",
+        default="binance_registry.json",
+        help="Path to registry JSON file (default: binance_registry.json)"
+    )
+    parser.add_argument(
+        "--endpoints",
+        default="binance_endpoints.json",
+        help="Path to endpoints JSON file (default: binance_endpoints.json)"
+    )
+    args = parser.parse_args()
 
     # Load credentials
     api_key, api_secret, BASE_URL = load_credentials()
 
-    # Check if files exist
-    if not Path(REGISTRY_FILE).exists():
-        logger.error(f"Registry file not found: {REGISTRY_FILE}")
-        logger.info("Please run: python generate_binance_registry.py")
-        return
+    # Find registry and endpoint files
+    try:
+        if Path(args.registry).is_absolute():
+            registry_file = Path(args.registry)
+        else:
+            registry_file = find_file(args.registry)
 
-    if not Path(ENDPOINTS_FILE).exists():
-        logger.error(f"Endpoints file not found: {ENDPOINTS_FILE}")
-        logger.info("Please run: python generate_binance_registry.py")
+        if Path(args.endpoints).is_absolute():
+            endpoints_file = Path(args.endpoints)
+        else:
+            endpoints_file = find_file(args.endpoints)
+
+    except FileNotFoundError as e:
+        logger.error(str(e))
+        logger.info("\nPlease ensure you have generated the registry files:")
+        logger.info("  python generate_binance_registry.py")
+        logger.info("\nOr specify custom file locations:")
+        logger.info("  python run_binance_server.py --registry /path/to/registry.json --endpoints /path/to/endpoints.json")
         return
 
     # Load registry and endpoints
-    registry = load_registry_from_file(REGISTRY_FILE)
-    endpoints = load_endpoints_from_file(ENDPOINTS_FILE)
+    logger.info(f"Loading registry from: {registry_file}")
+    registry = load_registry_from_file(str(registry_file))
+
+    logger.info(f"Loading endpoints from: {endpoints_file}")
+    endpoints = load_endpoints_from_file(str(endpoints_file))
 
     # Create executor with authentication
     if api_key and api_secret:

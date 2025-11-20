@@ -67,26 +67,33 @@ def load_credentials():
         logger.info("✓ Loaded credentials from environment variables")
         return api_key, api_secret, base_url
 
-    # Try config file
-    config_path = Path("binance_config.json")
-    if config_path.exists():
-        try:
-            with open(config_path) as f:
-                config = json.load(f)
+    # Try config file (search in current dir and script dir)
+    script_dir = Path(__file__).parent.resolve()
+    config_paths = [
+        Path.cwd() / "binance_config.json",
+        script_dir / "binance_config.json",
+    ]
 
-            api_key = config.get("api_key")
-            api_secret = config.get("api_secret")
-            base_url = config.get("base_url", "https://api.binance.com")
+    for config_path in config_paths:
+        if config_path.exists():
+            try:
+                with open(config_path) as f:
+                    config = json.load(f)
 
-            if api_key and api_secret:
-                logger.info("✓ Loaded credentials from binance_config.json")
-                return api_key, api_secret, base_url
-            else:
-                logger.warning("⚠ binance_config.json exists but missing credentials")
-        except json.JSONDecodeError as e:
-            logger.error(f"❌ Failed to parse binance_config.json: {e}")
-        except Exception as e:
-            logger.error(f"❌ Error reading binance_config.json: {e}")
+                api_key = config.get("api_key")
+                api_secret = config.get("api_secret")
+                base_url = config.get("base_url", "https://api.binance.com")
+
+                if api_key and api_secret:
+                    logger.info(f"✓ Loaded credentials from {config_path}")
+                    return api_key, api_secret, base_url
+                else:
+                    logger.warning(f"⚠ {config_path} exists but missing credentials")
+            except json.JSONDecodeError as e:
+                logger.error(f"❌ Failed to parse {config_path}: {e}")
+            except Exception as e:
+                logger.error(f"❌ Error reading {config_path}: {e}")
+            break  # Only try first found config file
 
     # No credentials found
     logger.info("⚠ No API credentials found")

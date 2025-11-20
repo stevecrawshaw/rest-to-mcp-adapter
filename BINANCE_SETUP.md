@@ -20,6 +20,10 @@ Binance uses **API Key + Secret** authentication with HMAC SHA256 signatures:
 
 ## Running the Server
 
+**Note**: Both server scripts can be run from **any directory**. They automatically search for:
+- Config files (`binance_config.json`) in current directory, then script directory
+- Registry files in current directory, then script directory
+
 ### Option 1: Simple Server (Recommended)
 
 The simple server regenerates tools on startup. You can provide credentials in two ways:
@@ -80,7 +84,24 @@ python run_binance_server.py
 
 # Method B: Using config file (create binance_config.json first)
 python run_binance_server.py
+
+# Method C: Run from anywhere (auto-detects registry files)
+cd /some/other/directory
+python /path/to/rest-to-mcp-adapter/run_binance_server.py
+
+# Method D: Specify custom registry file locations
+python run_binance_server.py --registry /path/to/my_registry.json --endpoints /path/to/my_endpoints.json
 ```
+
+**File Search Order**:
+1. Current working directory
+2. Script directory (where run_binance_server.py is located)
+3. Custom paths (if specified with `--registry` and `--endpoints`)
+
+This means you can:
+- Run the server from any directory
+- Store config files in the project directory
+- Use custom registry locations for different API configurations
 
 ## Public vs Authenticated Endpoints
 
