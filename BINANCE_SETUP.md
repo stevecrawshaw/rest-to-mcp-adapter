@@ -209,6 +209,23 @@ The server automatically adds timestamps and signatures, but does **not** implem
 - Ensure parameters are being sorted correctly
 - Verify timestamp is being added
 
+### Authentication Parameters (signature, timestamp, recvWindow)
+**Note**: You should **never** need to provide these parameters manually. They are automatically added by the authentication handler.
+
+- **What they are**: Security parameters required by Binance for authenticated endpoints
+  - `timestamp`: Current time in milliseconds (prevents replay attacks)
+  - `recvWindow`: Request validity window (default: 60 seconds)
+  - `signature`: HMAC SHA256 signature of the request parameters
+
+- **How it works**: The adapter automatically filters these from tool schemas
+  - Claude doesn't see them as user-facing parameters
+  - BinanceAuth handler adds them automatically to each authenticated request
+  - You only provide business parameters (e.g., `symbol`, `quantity`, `side`)
+
+- **If you see errors like**: `"arguments": {"signature": "...", "timestamp": ...}`
+  - This means auth parameters weren't filtered from the tool schema
+  - Solution: Regenerate tools by restarting the server (the latest adapter version fixes this)
+
 ## Reference
 
 - [Binance API Documentation](https://binance-docs.github.io/apidocs/spot/en/)
