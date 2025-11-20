@@ -94,6 +94,7 @@ def load_endpoints_from_file(endpoints_file: str) -> list:
     for ep_data in data:
         # Reconstruct CanonicalEndpoint from dict
         endpoint = CanonicalEndpoint(
+            name=ep_data['name'],
             path=ep_data['path'],
             method=ep_data['method'],
             operation_id=ep_data.get('operation_id'),
