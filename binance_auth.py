@@ -36,14 +36,14 @@ class BinanceAuth(AuthHandler):
         >>> # params now contains: {"symbol": "BTCUSDT", "timestamp": ..., "signature": ...}
     """
 
-    def __init__(self, api_key: str, api_secret: str, recv_window: int = 5000):
+    def __init__(self, api_key: str, api_secret: str, recv_window: int = 60000):
         """
         Initialize Binance authentication.
 
         Args:
             api_key: Your Binance API key
             api_secret: Your Binance API secret
-            recv_window: Request validity window in milliseconds (default: 5000)
+            recv_window: Request validity window in milliseconds (default: 60000 = 60 seconds)
         """
         self.api_key = api_key
         self.api_secret = api_secret
