@@ -141,6 +141,65 @@ for tool in search_results:
     print(f"{tool.name}: {tool.description}")
 ```
 
+## Important Limitations and Considerations
+
+### MCP Tool Name Length Limit (64 Characters)
+
+**Issue**: Claude's MCP protocol enforces a strict 64-character limit on tool names. APIs with long endpoint paths may exceed this limit.
+
+**Automatic Solution**: The `ToolGenerator` automatically truncates long names by:
+- Removing version numbers (v1, v2, v3)
+- Removing API keywords (api, sapi, rest)
+- Preserving the API prefix, HTTP method, and key path components
+- Intelligently abbreviating long path segments
+
+**Example**:
+```python
+# Original endpoint path: DELETE /sapi/v1/sub-account/subAccountApi/ipRestriction/ipList
+# Generated name (73 chars): binance_delete_sapi_v1_sub_account_sub_account_api_ip_restriction_ip_list
+# Auto-truncated (64 chars): binance_delete_sub_account_sub_account_ip_restriction_ip_list
+```
+
+**Impact on Your API**:
+- ✅ **Most APIs**: No impact. Names are typically well under 64 characters
+- ⚠️ **Large enterprise APIs** (like Binance): Some names may be truncated
+- ❌ **Deeply nested REST APIs**: Very long paths may lose some specificity
+
+**What You Should Know**:
+1. Tool names are truncated **automatically** - no action required
+2. The original full path is preserved in `tool.metadata["path"]`
+3. Tool descriptions remain complete and unaffected
+4. No functionality is lost - only the tool name is shortened
+
+**Checking Your API**:
+```python
+from adapter import OpenAPILoader, Normalizer, ToolGenerator
+
+loader = OpenAPILoader()
+spec = loader.load("your-openapi-spec.yaml")
+normalizer = Normalizer()
+endpoints = normalizer.normalize_openapi(spec)
+
+generator = ToolGenerator(api_name="myapi")
+tools = generator.generate_tools(endpoints)
+
+# Check for truncated names
+long_names = [t for t in tools if len(t.name) >= 60]
+if long_names:
+    print(f"⚠️ {len(long_names)} tools have names near the 64 char limit:")
+    for tool in long_names:
+        print(f"  {len(tool.name)} chars: {tool.name}")
+        print(f"    Full path: {tool.metadata.get('path', 'N/A')}")
+```
+
+### OpenAPI $ref Resolution
+
+**Issue**: Some OpenAPI specs use `$ref` pointers extensively (e.g., `{"$ref": "#/components/parameters/timestamp"}`).
+
+**Solution**: The `OpenAPILoader` automatically dereferences all `$ref` pointers before normalization. This is handled transparently.
+
+**No action needed** - just be aware that specs with circular references may fail to load.
+
 ## Authentication Options
 
 ### No Authentication

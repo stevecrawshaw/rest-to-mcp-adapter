@@ -118,6 +118,14 @@ The server automatically adds timestamps and signatures, but does **not** implem
 
 ## Troubleshooting
 
+### "String should have at most 64 characters" (Tool Name Limit)
+- **Cause**: Claude's MCP protocol limits tool names to 64 characters
+- **Solution**: The adapter automatically truncates long names by removing version numbers (v1, v2, v3) and API keywords (api, sapi)
+- **Note**: Some Binance endpoints have very long paths. The adapter intelligently shortens these while preserving readability
+- **Example**:
+  - Original: `binance_delete_sapi_v1_sub_account_sub_account_api_ip_restriction_ip_list` (73 chars)
+  - Truncated: `binance_delete_sub_account_sub_account_ip_restriction_ip_list` (64 chars)
+
 ### "Timestamp for this request is outside of the recvWindow"
 - Your system clock is not synchronized
 - Solution: Sync your system time with NTP
