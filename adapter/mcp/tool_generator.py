@@ -104,26 +104,78 @@ class ToolGenerator:
     def generate_tools(
         self,
         endpoints: List[CanonicalEndpoint],
+        limit: Optional[int] = None,
+        path_pattern: Optional[str] = None,
+        method_filter: Optional[str] = None,
     ) -> List[MCPTool]:
         """
         Generate MCP tools from a list of canonical endpoints.
 
         Args:
             endpoints: List of normalized endpoints
+            limit: Optional maximum number of tools to generate
+            path_pattern: Optional regex pattern to filter endpoints by path
+            method_filter: Optional HTTP method filter (GET, POST, etc.)
 
         Returns:
             List of MCP tool definitions
 
         Examples:
             >>> generator = ToolGenerator()
+            >>> # Generate all tools
             >>> tools = generator.generate_tools(endpoints)
-            >>> print(f"Generated {len(tools)} tools")
+            >>>
+            >>> # Generate only first 10 tools
+            >>> tools = generator.generate_tools(endpoints, limit=10)
+            >>>
+            >>> # Generate only GET endpoints
+            >>> tools = generator.generate_tools(endpoints, method_filter='GET')
+            >>>
+            >>> # Generate tools for /users path
+            >>> tools = generator.generate_tools(endpoints, path_pattern=r'/users')
+            >>>
+            >>> # Combine filters
+            >>> tools = generator.generate_tools(
+            ...     endpoints,
+            ...     method_filter='GET',
+            ...     path_pattern=r'/users',
+            ...     limit=5
+            ... )
         """
+        import re
+
         tools = []
+        count = 0
+
+        # Compile regex if pattern provided
+        path_regex = None
+        if path_pattern:
+            try:
+                path_regex = re.compile(path_pattern, re.IGNORECASE)
+            except re.error as e:
+                raise ValueError(f"Invalid path pattern: {e}")
+
+        # Normalize method filter
+        if method_filter:
+            method_filter = method_filter.upper()
 
         for endpoint in endpoints:
+            # Apply method filter
+            if method_filter and endpoint.method != method_filter:
+                continue
+
+            # Apply path pattern filter
+            if path_regex and not path_regex.search(endpoint.path):
+                continue
+
+            # Generate tool
             tool = self.generate_tool(endpoint)
             tools.append(tool)
+            count += 1
+
+            # Apply limit
+            if limit is not None and count >= limit:
+                break
 
         return tools
 
