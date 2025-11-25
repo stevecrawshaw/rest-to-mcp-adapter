@@ -59,7 +59,13 @@ server.run()  # Claude can now use your API!
 
 ## 📦 Installation
 
-### From Source (Recommended for now)
+### From PyPI
+
+```bash
+pip install rest-to-mcp-adapter
+```
+
+### From Source
 
 ```bash
 git clone https://github.com/pawneetdev/rest-to-mcp-adapter.git
@@ -67,17 +73,22 @@ cd rest-to-mcp-adapter
 pip install -e .
 ```
 
-### Dependencies
+### Development Installation
 
 ```bash
-# Core dependencies (auto-installed)
-pydantic>=2.0.0
-pyyaml>=6.0
-requests>=2.31.0
-
-# Optional but recommended
-langchain-community>=0.0.20
+# Clone and install with development dependencies
+git clone https://github.com/pawneetdev/rest-to-mcp-adapter.git
+cd rest-to-mcp-adapter
+pip install -e ".[dev]"
 ```
+
+### Dependencies
+
+Core dependencies (automatically installed):
+- `pydantic>=2.0.0` - Data validation and modeling
+- `pyyaml>=6.0` - YAML parsing
+- `requests>=2.31.0` - HTTP client
+- `langchain-community>=0.0.20` - MCP protocol support
 
 ---
 
