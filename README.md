@@ -311,6 +311,14 @@ executor = APIExecutor(
 )
 ```
 
+**Real-World Example**: The [Binance MCP](https://github.com/pawneetdev/binance-mcp) implements a production-grade version of this pattern with additional features:
+- Server time synchronization for timestamp accuracy
+- Query string canonicalization (sorted parameter ordering)
+- Optional `recvWindow` parameter for clock skew tolerance
+- Comprehensive error messages for auth failures
+
+Refer to its `auth.py` module for a complete implementation you can adapt for similar signature-based APIs.
+
 ### 6. Executing API Calls Directly
 
 ```python
@@ -491,6 +499,13 @@ For detailed architecture documentation, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ### Complete Example: Building a Binance MCP Server
 
+**Note**: This is a simplified example showing the core workflow. For a production-ready implementation, see the [Binance MCP repository](https://github.com/pawneetdev/binance-mcp) which includes:
+- Complete `BinanceAuth` handler with HMAC-SHA256 signing
+- Environment variable and config file credential management
+- Comprehensive error handling and retry logic
+- Ready-to-use Claude Desktop configuration
+- Step-by-step deployment instructions
+
 ```python
 #!/usr/bin/env python3
 """Binance API MCP Server"""
@@ -549,11 +564,95 @@ if __name__ == "__main__":
 
 ### More Examples
 
-See the `examples/` directory for more:
+See the `examples/` directory for library usage patterns:
 - `examples/basic_usage.py` - Basic ingestion and normalization
 - `examples/phase2_tool_generation.py` - Tool generation examples
 - `examples/phase3_execution.py` - API execution examples
 - `examples/phase4_mcp_server.py` - MCP server setup
+
+For complete production implementations, see the [Real-World Integrations](#-real-world-integrations) section below.
+
+---
+
+## 🌍 Real-World Integrations
+
+The REST-to-MCP Adapter powers production MCP servers for real APIs. These example repositories demonstrate complete implementations with different authentication patterns and specification formats.
+
+### DataForSEO MCP
+
+**Repository**: https://github.com/pawneetdev/dataforseo-mcp/
+
+Production MCP server for the DataForSEO API demonstrating:
+
+- **Authentication**: HTTP Basic Authentication
+- **Spec Format**: OpenAPI Actions/JSON format
+- **Use Case**: SEO data retrieval and analysis
+- **What You'll Learn**:
+  - Loading OpenAPI JSON specifications
+  - Implementing standard HTTP Basic auth
+  - Organizing tools by API categories
+  - Handling paginated responses
+
+**Quick Start**:
+```bash
+git clone https://github.com/pawneetdev/dataforseo-mcp.git
+cd dataforseo-mcp
+pip install -e .
+```
+
+See the repository README for complete setup instructions and Claude Desktop integration.
+
+---
+
+### Binance MCP
+
+**Repository**: https://github.com/pawneetdev/binance-mcp
+
+Production MCP server for the Binance Spot Trading API demonstrating:
+
+- **Authentication**: Custom HMAC-SHA256 signature-based authentication
+- **Spec Format**: Swagger/OpenAPI YAML format
+- **Use Case**: Cryptocurrency trading and market data
+- **What You'll Learn**:
+  - Loading Swagger YAML specifications
+  - Implementing custom `AuthHandler` with cryptographic signatures
+  - Query string signing with HMAC-SHA256
+  - Automatic timestamp and nonce injection
+  - Advanced parameter filtering for signature-based endpoints
+  - Handling large APIs (100+ endpoints)
+
+**Authentication Pattern**:
+The Binance MCP extends the `AuthHandler` base class to implement Binance's specific requirements:
+- API key in headers (`X-MBX-APIKEY`)
+- Timestamp query parameter (synchronized with server time)
+- HMAC-SHA256 signature of query string
+- Optional `recvWindow` for timing flexibility
+
+This pattern can be adapted for other APIs with signature-based authentication (AWS, Kraken, etc.).
+
+**Quick Start**:
+```bash
+git clone https://github.com/pawneetdev/binance-mcp.git
+cd binance-mcp
+pip install -e .
+```
+
+See the repository README for API key setup, credential management, and Claude Desktop integration.
+
+---
+
+### Learning Path
+
+1. **Start with DataForSEO**: Straightforward authentication, standard OpenAPI patterns
+2. **Progress to Binance**: Advanced custom authentication, complex parameter handling
+3. **Build Your Own**: Apply these patterns to your target API
+
+Both repositories include:
+- Complete source code and project structure
+- Production-grade error handling
+- Retry logic and timeout management
+- Claude Desktop configuration examples
+- Deployment documentation
 
 ---
 
