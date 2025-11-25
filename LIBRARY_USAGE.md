@@ -552,6 +552,8 @@ thread = run_server_in_thread(server)
 
 ### Load Pre-generated Registry
 
+#### Method 1: Using Built-in Import (Recommended)
+
 ```python
 from adapter import ToolRegistry, APIExecutor, MCPServer, BasicAuth
 
@@ -563,12 +565,115 @@ auth = BasicAuth(username="user", password="pass")
 executor = APIExecutor(base_url="https://api.example.com", auth=auth)
 
 # Note: You still need endpoints for execution
-# You can save them alongside the registry
+# Load endpoints if you need to execute tools
 import json
+from adapter.parsing import CanonicalEndpoint
+
 with open("endpoints.json", "r") as f:
-    endpoints_data = json.load(f)
-# Reconstruct endpoints from saved data
+    endpoints = [CanonicalEndpoint(**data) for data in json.load(f)]
 ```
+
+#### Method 2: Manual Loading with MCPTool (More Control)
+
+```python
+import json
+from adapter import ToolRegistry, MCPTool, APIExecutor, MCPServer
+from adapter.parsing import CanonicalEndpoint
+
+# Load registry manually
+registry_file = "binance_spot_toolkit.json"
+
+with open(registry_file) as f:
+    data = json.load(f)
+
+# Create registry
+registry = ToolRegistry(name=data.get("name", "API Tools"))
+
+# Load tools manually
+for tool_data in data.get("tools", []):
+    tool = MCPTool(
+        name=tool_data["name"],
+        description=tool_data["description"],
+        inputSchema=tool_data["inputSchema"],
+        metadata=tool_data.get("metadata")
+    )
+    registry.add_tool(tool)
+
+print(f"Loaded {registry.count()} tools")
+
+# Load endpoints if needed for execution
+endpoints_file = "binance_spot_endpoints.json"
+
+with open(endpoints_file) as f:
+    endpoint_data = json.load(f)
+
+endpoints = [CanonicalEndpoint(**ep_data) for ep_data in endpoint_data]
+
+# Now you can use the registry and endpoints with MCPServer
+executor = APIExecutor(
+    base_url="https://api.binance.com",
+    auth=your_auth_handler
+)
+
+server = MCPServer(
+    name="Binance MCP Server",
+    version="1.0.0",
+    tool_registry=registry,
+    executor=executor,
+    endpoints=endpoints
+)
+
+server.run()
+```
+
+**When to use manual loading:**
+- When you need to filter or modify tools during loading
+- When working with custom JSON formats
+- When you want fine-grained control over the loading process
+- When debugging tool definitions
+
+#### When Do You Need Endpoints?
+
+**Endpoints are ONLY needed if you plan to execute API calls.** Here's the breakdown:
+
+```python
+# Scenario 1: Just browsing/searching tools (NO endpoints needed)
+registry = ToolRegistry.import_json("registry.json")
+tools = registry.search_tools("user")
+for tool in tools:
+    print(f"{tool.name}: {tool.description}")
+# ✅ Works without endpoints
+
+# Scenario 2: Running MCP server that executes tools (endpoints REQUIRED)
+registry = ToolRegistry.import_json("registry.json")
+
+# Load endpoints - REQUIRED for execution
+with open("endpoints.json") as f:
+    endpoints = [CanonicalEndpoint(**data) for data in json.load(f)]
+
+executor = APIExecutor(base_url="...", auth=auth)
+server = MCPServer(
+    name="API Server",
+    version="1.0.0",
+    tool_registry=registry,
+    executor=executor,
+    endpoints=endpoints  # ✅ REQUIRED here
+)
+server.run()
+
+# Scenario 3: Direct API execution (endpoints REQUIRED)
+with open("endpoints.json") as f:
+    endpoints = [CanonicalEndpoint(**data) for data in json.load(f)]
+
+executor = APIExecutor(base_url="...", auth=auth)
+result = executor.execute(endpoints[0], arguments={"param": "value"})
+# ✅ Endpoints required for execution
+```
+
+**Summary:**
+- **Tool browsing/export**: Endpoints NOT needed
+- **MCP server with execution**: Endpoints REQUIRED
+- **Direct API calls**: Endpoints REQUIRED
 
 ## API Reference
 
@@ -600,10 +705,10 @@ registry.add_tools(tools)
 # Save for reuse
 registry.export_json("registry.json")
 
-# Save endpoints too
+# Save endpoints for later use (needed for tool execution)
 import json
 with open("endpoints.json", "w") as f:
-    json.dump([ep.dict() for ep in endpoints], f)
+    json.dump([ep.model_dump() for ep in endpoints], f)
 ```
 
 ```python
