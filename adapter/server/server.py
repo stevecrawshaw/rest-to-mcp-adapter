@@ -19,14 +19,8 @@ class MCPServer:
     """
     MCP server implementation.
 
-    This is the main class for Phase 4 - it implements the MCP protocol
-    and exposes REST API tools to LLM agents like Claude.
-
-    The server integrates all previous phases:
-    - Phase 1: Uses canonical endpoints
-    - Phase 2: Uses MCP tool definitions
-    - Phase 3: Uses runtime executor for API calls
-    - Phase 4: Exposes everything via MCP protocol
+    Implements the MCP protocol and exposes REST API tools to LLM agents
+    like Claude.
 
     Protocol methods supported:
     - initialize: Server initialization handshake
@@ -40,25 +34,25 @@ class MCPServer:
         >>> from adapter.runtime import APIExecutor, BearerAuth
         >>> from adapter.server import MCPServer
         >>>
-        >>> # Phase 1: Load and normalize
+        >>> # Load and normalize
         >>> loader = OpenAPILoader()
         >>> spec = loader.load("https://api.example.com/openapi.json")
         >>> normalizer = Normalizer()
         >>> endpoints = normalizer.normalize_openapi(spec)
         >>>
-        >>> # Phase 2: Generate tools
+        >>> # Generate tools
         >>> generator = ToolGenerator(api_name="example")
         >>> tools = generator.generate_tools(endpoints)
         >>> registry = ToolRegistry(name="Example API")
         >>> registry.add_tools(tools)
         >>>
-        >>> # Phase 3: Set up executor
+        >>> # Set up executor
         >>> executor = APIExecutor(
         ...     base_url="https://api.example.com",
         ...     auth=BearerAuth(token="token")
         ... )
         >>>
-        >>> # Phase 4: Create and run MCP server
+        >>> # Create and run MCP server
         >>> server = MCPServer(
         ...     name="Example API MCP Server",
         ...     version="1.0.0",
@@ -83,9 +77,9 @@ class MCPServer:
         Args:
             name: Server name
             version: Server version
-            tool_registry: ToolRegistry from Phase 2 (may contain endpoints)
-            executor: APIExecutor from Phase 3
-            endpoints: Optional list of CanonicalEndpoint from Phase 1.
+            tool_registry: ToolRegistry (may contain endpoints)
+            executor: APIExecutor for making API calls
+            endpoints: Optional list of CanonicalEndpoint.
                       If not provided, will be retrieved from tool_registry.
 
         Raises:

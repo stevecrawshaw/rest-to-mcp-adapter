@@ -656,7 +656,7 @@ class ToolRegistry:
         from ..parsing import Normalizer
         from .tool_generator import ToolGenerator
 
-        # Phase 1: Load OpenAPI spec
+        # Load OpenAPI spec
         loader = OpenAPILoader(strict=strict, use_langchain=use_langchain)
         spec = loader.load(source)
 
@@ -665,11 +665,11 @@ class ToolRegistry:
         if auto_detect_auth:
             auto_detected_auth_params = loader.extract_auth_parameters(spec)
 
-        # Phase 2: Normalize to canonical format
+        # Normalize to canonical format
         normalizer = Normalizer()
         endpoints = normalizer.normalize_openapi(spec)
 
-        # Phase 3: Generate MCP tools
+        # Generate MCP tools
         generator = ToolGenerator(
             api_name=api_name,
             include_metadata=include_metadata,
@@ -685,7 +685,7 @@ class ToolRegistry:
             method_filter=method_filter,
         )
 
-        # Phase 4: Create and populate registry with endpoints
+        # Create and populate registry with endpoints
         registry = cls(name=name, endpoints=endpoints)
         registry.add_tools(tools)
 
