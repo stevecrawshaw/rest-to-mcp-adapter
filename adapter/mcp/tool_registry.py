@@ -566,7 +566,7 @@ class ToolRegistry:
         return len(self._endpoints) > 0
 
     @classmethod
-    def from_openapi(
+    def create_from_openapi(
         cls,
         source: str,
         name: Optional[str] = None,
@@ -619,12 +619,12 @@ class ToolRegistry:
 
         Examples:
             >>> # Simple usage
-            >>> registry = ToolRegistry.from_openapi(
+            >>> registry = ToolRegistry.create_from_openapi(
             ...     "https://api.example.com/openapi.json"
             ... )
 
             >>> # With configuration
-            >>> registry = ToolRegistry.from_openapi(
+            >>> registry = ToolRegistry.create_from_openapi(
             ...     source="./specs/api.yaml",
             ...     name="My API",
             ...     api_name="myapi",
@@ -633,7 +633,7 @@ class ToolRegistry:
             ... )
 
             >>> # Custom auth detection
-            >>> registry = ToolRegistry.from_openapi(
+            >>> registry = ToolRegistry.create_from_openapi(
             ...     "https://api.example.com/openapi.json",
             ...     auth_params={"x-custom-auth"},
             ...     auto_detect_auth=False

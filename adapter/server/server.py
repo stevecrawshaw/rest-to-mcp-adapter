@@ -102,7 +102,7 @@ class MCPServer:
             else:
                 raise ValueError(
                     "No endpoints provided and registry doesn't contain endpoints. "
-                    "Either pass endpoints parameter or use ToolRegistry.from_openapi()."
+                    "Either pass endpoints parameter or use ToolRegistry.create_from_openapi()."
                 )
 
         # Initialize components

@@ -527,12 +527,12 @@ For rapid prototyping and simple use cases, use the one-step convenience method:
 from adapter import ToolRegistry
 
 # Create registry in one line
-registry = ToolRegistry.from_openapi(
+registry = ToolRegistry.create_from_openapi(
     "https://api.example.com/openapi.json"
 )
 
 # With configuration
-registry = ToolRegistry.from_openapi(
+registry = ToolRegistry.create_from_openapi(
     source="./specs/api.yaml",
     name="My API",
     api_name="myapi",
@@ -559,13 +559,13 @@ registry.export_json("tools.json")
 
 ### Simplified Server Creation
 
-When using `from_openapi()`, you don't need to pass endpoints to MCPServer:
+When using `create_from_openapi()`, you don't need to pass endpoints to MCPServer:
 
 ```python
 from adapter import ToolRegistry, MCPServer, APIExecutor, BearerAuth
 
 # Create registry with endpoints stored internally
-registry = ToolRegistry.from_openapi("https://api.example.com/openapi.json")
+registry = ToolRegistry.create_from_openapi("https://api.example.com/openapi.json")
 
 # Set up executor
 executor = APIExecutor(
@@ -585,7 +585,7 @@ server.run()
 ```
 
 **How it works:**
-- `from_openapi()` stores endpoints in the registry
+- `create_from_openapi()` stores endpoints in the registry
 - MCPServer checks if registry has endpoints
 - If found, uses them automatically
 - Backward compatible: explicit endpoints still work

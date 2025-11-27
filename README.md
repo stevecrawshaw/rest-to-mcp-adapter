@@ -25,7 +25,7 @@ Transform any REST API specification into tools that Claude, GPT, and other LLM-
 from adapter import ToolRegistry, MCPServer, APIExecutor, BearerAuth
 
 # Create registry from OpenAPI spec (includes endpoints)
-registry = ToolRegistry.from_openapi(
+registry = ToolRegistry.create_from_openapi(
     "https://api.example.com/openapi.json"
 )
 
