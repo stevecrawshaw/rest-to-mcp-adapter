@@ -19,6 +19,23 @@ Transform any REST API specification into tools that Claude, GPT, and other LLM-
 
 ## 🚀 Quick Start
 
+### Simple Approach (Recommended for Most Users)
+
+```python
+from adapter import ToolRegistry
+
+# Create a complete tool registry from an OpenAPI spec in one step
+registry = ToolRegistry.from_openapi(
+    "https://api.example.com/openapi.json"
+)
+
+print(f"Loaded {registry.count()} tools")
+```
+
+For more control over individual steps, see [Detailed Usage](#-detailed-usage) below.
+
+### Complete Example (With MCP Server)
+
 ```python
 from adapter import (
     OpenAPILoader,

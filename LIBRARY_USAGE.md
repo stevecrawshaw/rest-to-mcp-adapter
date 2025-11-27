@@ -12,6 +12,7 @@ This guide provides advanced usage patterns and comprehensive reference material
 - [Batch API Calls](#batch-api-calls)
 - [Authentication Parameter Filtering](#authentication-parameter-filtering)
 - [Complete Examples](#complete-examples)
+- [Convenience Methods](#convenience-methods)
 - [Integration Patterns](#integration-patterns)
 - [API Reference](#api-reference)
 - [Common Patterns](#common-patterns)
@@ -515,6 +516,46 @@ server = MCPServer(
 # Run the server
 server.run()
 ```
+
+## Convenience Methods
+
+### Quick Registry Creation
+
+For rapid prototyping and simple use cases, use the one-step convenience method:
+
+```python
+from adapter import ToolRegistry
+
+# Create registry in one line
+registry = ToolRegistry.from_openapi(
+    "https://api.example.com/openapi.json"
+)
+
+# With configuration
+registry = ToolRegistry.from_openapi(
+    source="./specs/api.yaml",
+    name="My API",
+    api_name="myapi",
+    limit=50,
+    method_filter="GET"
+)
+
+# Registry is ready to use
+print(f"Created {registry.count()} tools")
+registry.export_json("tools.json")
+```
+
+**When to use the convenience method:**
+- Quick prototyping and exploration
+- Simple use cases with minimal configuration
+- When you don't need access to intermediate objects (spec, endpoints, tools)
+
+**When to use individual classes:**
+- Complex workflows requiring intermediate processing
+- Custom normalization or filtering logic
+- Debugging or inspecting intermediate results
+- Advanced configuration at each phase
+- Reusing intermediate objects (spec, endpoints, tools)
 
 ## Integration Patterns
 
