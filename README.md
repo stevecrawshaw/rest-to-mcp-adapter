@@ -1,745 +1,777 @@
-# REST-to-MCP Adapter
+# West of England OpenDataSoft MCP Server
 
-**A Python library for converting REST API specifications into MCP (Model Context Protocol) tools for AI agents.**
+This MCP server provides Claude with access to the West of England Combined Authority's OpenDataSoft API, enabling exploration of public datasets including transportation, demographics, planning, and regional statistics. It was created using the code in this [repo](https://github.com/pawneetdev/rest-to-mcp-adapter).
 
-Transform any REST API specification into tools that Claude, GPT, and other LLM-powered agents can use.
+## Features
 
-**Supported Formats:**
-- OpenAPI 3.x (JSON, YAML)
-- Swagger 2.x (JSON, YAML)
-- OpenAPI Actions format (JSON)
+- **Public API**: No authentication required
+- **Auto-generated Tools**: Automatically generates MCP tools from OpenAPI specification
+- **Complete Coverage**: Access to all OpenDataSoft v2.1 API endpoints
+- **Robust Execution**: Built-in retry logic and error handling
+- **Configurable**: Environment variable-based configuration with sensible defaults
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![PyPI version](https://badge.fury.io/py/rest-to-mcp-adapter.svg)](https://pypi.org/project/rest-to-mcp-adapter/)
+## Quick Start
 
-> **⚠️ Beta Status**: This library is currently in beta (v0.1.0). The core functionality is stable and production-ready, but the API may evolve based on community feedback. We welcome early adopters and contributors!
+### 1. Prerequisites
 
----
+- **uv** package manager installed ([installation guide](https://docs.astral.sh/uv/getting-started/installation/))
+- **Claude Code CLI** installed ([installation guide](https://github.com/anthropics/claude-code))
 
-## 🚀 Quick Start
+### 2. Test the Server
 
-### Simple Approach (Recommended for Most Users)
-
-```python
-from adapter import ToolRegistry, MCPServer, APIExecutor, BearerAuth
-
-# Create registry from OpenAPI spec (includes endpoints)
-registry = ToolRegistry.create_from_openapi(
-    "https://api.example.com/openapi.json"
-)
-
-# Set up executor
-executor = APIExecutor(
-    base_url="https://api.example.com",
-    auth=BearerAuth(token="your-token")
-)
-
-# Create server - endpoints are in the registry!
-server = MCPServer(
-    name="My API Server",
-    version="1.0.0",
-    tool_registry=registry,
-    executor=executor
-    # No endpoints parameter needed!
-)
-server.run()
-```
-
-For advanced usage and individual step control, see [Detailed Usage](#-detailed-usage) below.
-
----
-
-## 📦 Installation
-
-### Stable Release
+Run the server directly to verify it works:
 
 ```bash
-pip install rest-to-mcp-adapter
+cd C:/Users/steve.crawshaw/projects/rest-to-mcp-adapter
+uv run ods_server.py
 ```
 
-### Beta Release (Latest Features)
+The server will start and wait for JSON-RPC messages on stdin. You should see log output like:
 
-To install the latest beta version with cutting-edge features:
+```
+2024-01-15 10:30:00 - __main__ - INFO - Starting West of England OpenDataSoft MCP Server
+2024-01-15 10:30:00 - __main__ - INFO - Base URL: https://opendata.westofengland-ca.gov.uk/api/explore/v2.1
+2024-01-15 10:30:01 - __main__ - INFO - Loading OpenAPI spec from: https://opendata.westofengland-ca.gov.uk/api/explore/v2.1/swagger.json
+2024-01-15 10:30:02 - __main__ - INFO - Created registry with 12 tools
+2024-01-15 10:30:02 - __main__ - INFO - Sample tools: ods_get_datasets, ods_get_dataset, ods_get_records...
+2024-01-15 10:30:02 - __main__ - INFO - MCP Server 'West of England OpenDataSoft' v1.0.0 ready
+2024-01-15 10:30:02 - __main__ - INFO - Server starting on stdio transport...
+```
+
+Press Ctrl+C to stop.
+
+### 3. Configure Claude Code
+
+Add the MCP server using the Claude Code CLI:
 
 ```bash
-pip install --pre rest-to-mcp-adapter
+claude mcp add west-england-ods "uv run --directory C:/Users/steve.crawshaw/projects/rest-to-mcp-adapter ods_server.py"
 ```
 
-Or install a specific beta version:
-
-```bash
-pip install rest-to-mcp-adapter==0.2.0b1
-```
-
-### From Source (For Development)
-
-```bash
-git clone https://github.com/pawneetdev/rest-to-mcp-adapter.git
-cd rest-to-mcp-adapter
-pip install -e .
-```
-
-### Dependencies
-
-Core dependencies (automatically installed):
-- `pydantic>=2.0.0` - Data validation and modeling
-- `pyyaml>=6.0` - YAML parsing
-- `requests>=2.31.0` - HTTP client
-
-Optional dependencies:
-- `langchain-community>=0.0.20` - Enhanced OpenAPI validation (install with: `pip install rest-to-mcp-adapter[langchain]`)
-
----
-
-## ✨ Key Features
-
-### 🔄 Specification Ingestion
-- **Multiple formats**: OpenAPI 3.x, Swagger 2.x, OpenAPI Actions
-- **JSON & YAML**: Full support for both formats
-- **Load from anywhere**: URL, file path, or raw content
-- **Auto-detection**: Automatically determines input type and format
-- **$ref dereferencing**: Resolves all JSON pointer references
-
-### 🛠️ MCP Tool Generation
-- **Automatic conversion**: OpenAPI endpoints → MCP tools
-- **Smart naming**: 64-character limit with intelligent truncation
-- **Auth filtering**: Automatically hides auth parameters from users
-- **Hybrid approach**: Defaults + auto-detection + custom overrides
-
-### 🔐 Authentication Support
-- **Built-in handlers**: API Key, Bearer, Basic, OAuth2
-- **Custom handlers**: Easy to implement your own
-- **Automatic parameter filtering**: Auth params hidden from tool schemas
-- **Conditional auth**: Only applies to endpoints that require it
-
-### ⚡ Runtime Execution
-- **Direct API calls**: Execute REST requests from canonical endpoints
-- **Retry logic**: Exponential backoff for failed requests
-- **Error handling**: Comprehensive error types and messages
-- **Response processing**: JSON, text, and binary support
-
-### 🤖 MCP Server
-- **Full MCP protocol**: JSON-RPC 2.0 over stdio
-- **Claude integration**: Ready for Claude Desktop
-- **Tool discovery**: `tools/list` endpoint
-- **Tool execution**: `tools/call` endpoint
-
----
-
-## 📖 Detailed Usage
-
-> **💡 Looking for advanced features?** See [LIBRARY_USAGE.md](LIBRARY_USAGE.md) for:
-> - Advanced tool generation patterns
-> - Registry operations (search, filter, export/import)
-> - Batch API calls
-> - Integration patterns and best practices
-> - Troubleshooting guide
-> - Important limitations (64-char tool name limit, etc.)
-
-### 1. Loading API Specifications
-
-The library supports multiple specification formats with automatic detection:
-
-```python
-from adapter import OpenAPILoader
-
-loader = OpenAPILoader()
-
-# OpenAPI 3.x (JSON)
-spec = loader.load("https://api.example.com/openapi.json")
-
-# OpenAPI 3.x (YAML)
-spec = loader.load("./specs/openapi.yaml")
-
-# Swagger 2.x (JSON)
-spec = loader.load("./specs/swagger.json")
-
-# Swagger 2.x (YAML)
-spec = loader.load("https://api.example.com/swagger.yaml")
-
-# OpenAPI Actions format
-spec = loader.load("./specs/actions.json")
-
-# From raw YAML content
-yaml_content = """
-openapi: 3.0.0
-info:
-  title: My API
-  version: 1.0.0
-paths:
-  /users:
-    get:
-      summary: List users
-"""
-spec = loader.load(yaml_content)
-
-# From raw JSON content
-json_content = '{"openapi": "3.0.0", "info": {"title": "My API"}}'
-spec = loader.load(json_content)
-
-# Auto-detection works for all methods
-# Automatically detects: URL vs file vs content, JSON vs YAML, OpenAPI vs Swagger
-spec = loader.load(source)
-```
-
-### 2. Normalizing to Canonical Format
-
-```python
-from adapter import Normalizer
-
-normalizer = Normalizer()
-endpoints = normalizer.normalize_openapi(spec)
-
-# Inspect normalized endpoints
-for endpoint in endpoints:
-    print(f"{endpoint.method} {endpoint.path}")
-    print(f"  Name: {endpoint.name}")
-    print(f"  Parameters: {len(endpoint.parameters)}")
-    print(f"  Requires auth: {bool(endpoint.security)}")
-```
-
-### 3. Generating MCP Tools
-
-#### Basic Usage
-
-```python
-from adapter import ToolGenerator
-
-generator = ToolGenerator(api_name="myapi")
-tools = generator.generate_tools(endpoints)
-
-# Tools are ready to use!
-for tool in tools:
-    print(f"Tool: {tool.name}")
-    print(f"Description: {tool.description}")
-    print(f"Parameters: {tool.inputSchema}")
-```
-
-#### With Auto-Detected Auth Filtering
-
-```python
-from adapter import OpenAPILoader, ToolGenerator
-
-# Load spec
-loader = OpenAPILoader()
-spec = loader.load("api.yaml")
-
-# Auto-detect auth parameters from security schemes
-auto_detected = loader.extract_auth_parameters(spec)
-print(f"Auto-detected: {auto_detected}")
-# Output: {'x-api-key', 'signature', ...}
-
-# Generate tools with hybrid filtering (defaults + auto-detected)
-generator = ToolGenerator(
-    api_name="myapi",
-    auto_detected_auth_params=auto_detected
-)
-tools = generator.generate_tools(endpoints)
-
-# Auth parameters are automatically hidden!
-# Users only see business parameters
-```
-
-#### With Custom Auth Parameters
-
-```python
-# Override defaults completely
-generator = ToolGenerator(
-    api_name="myapi",
-    auth_params={'my_signature', 'my_timestamp', 'my_nonce'}
-)
-tools = generator.generate_tools(endpoints)
-```
-
-### 4. Working with Tool Registry
-
-```python
-from adapter import ToolRegistry
-
-# Create registry
-registry = ToolRegistry(name="My API")
-registry.add_tools(tools)
-
-# Query tools
-print(f"Total tools: {registry.count()}")
-print(f"Tool names: {registry.get_tool_names()}")
-
-# Filter tools
-product_tools = registry.get_tools_by_tag("products")
-get_tools = registry.get_tools_by_method("GET")
-search_results = registry.search_tools("user")
-
-# Get specific tool
-user_tool = registry.get_tool("myapi_get_users")
-
-# Export/Import
-registry.export_json("tools.json")
-registry2 = ToolRegistry.import_json("tools.json")
-```
-
-### 5. Authentication Handlers
-
-#### Built-in Handlers
-
-```python
-from adapter import APIExecutor, BearerAuth, APIKeyAuth, BasicAuth
-
-# Bearer Token
-executor = APIExecutor(
-    base_url="https://api.example.com",
-    auth=BearerAuth(token="your-bearer-token")
-)
-
-# API Key (in header)
-executor = APIExecutor(
-    base_url="https://api.example.com",
-    auth=APIKeyAuth(api_key="your-api-key", header_name="X-API-Key")
-)
-
-# API Key (in query)
-executor = APIExecutor(
-    base_url="https://api.example.com",
-    auth=APIKeyAuth(api_key="your-api-key", location="query", param_name="apikey")
-)
-
-# Basic Auth
-executor = APIExecutor(
-    base_url="https://api.example.com",
-    auth=BasicAuth(username="user", password="pass")
-)
-```
-
-#### Custom Auth Handler
-
-```python
-from adapter.runtime import AuthHandler
-
-class CustomAuth(AuthHandler):
-    def __init__(self, api_key: str, api_secret: str):
-        self.api_key = api_key
-        self.api_secret = api_secret
-
-    def apply(self, headers: dict, params: dict) -> None:
-        # Add custom authentication logic
-        import time
-        import hmac
-        import hashlib
-
-        timestamp = int(time.time() * 1000)
-        params["timestamp"] = str(timestamp)
-
-        # Create signature
-        query_string = "&".join(f"{k}={v}" for k, v in sorted(params.items()))
-        signature = hmac.new(
-            self.api_secret.encode(),
-            query_string.encode(),
-            hashlib.sha256
-        ).hexdigest()
-
-        params["signature"] = signature
-        headers["X-API-KEY"] = self.api_key
-
-# Use custom auth
-executor = APIExecutor(
-    base_url="https://api.example.com",
-    auth=CustomAuth(api_key="key", api_secret="secret")
-)
-```
-
-**Real-World Example**: The [Binance MCP](https://github.com/pawneetdev/binance-mcp) implements a production-grade version of this pattern with additional features:
-- Server time synchronization for timestamp accuracy
-- Query string canonicalization (sorted parameter ordering)
-- Optional `recvWindow` parameter for clock skew tolerance
-- Comprehensive error messages for auth failures
-
-Refer to its `auth.py` module for a complete implementation you can adapt for similar signature-based APIs.
-
-### 6. Executing API Calls Directly
-
-```python
-from adapter import APIExecutor, NoAuth
-
-# Create executor
-executor = APIExecutor(
-    base_url="https://api.example.com",
-    auth=NoAuth(),  # Public endpoints
-    timeout=30,
-    max_retries=3
-)
-
-# Find an endpoint
-endpoint = next(ep for ep in endpoints if ep.name == "get_users")
-
-# Execute call
-result = executor.execute(endpoint, arguments={"limit": 10})
-
-if result.success:
-    print(f"Status: {result.status_code}")
-    print(f"Data: {result.response.data}")
-else:
-    print(f"Error: {result.error}")
-```
-
-### 7. Running an MCP Server
-
-```python
-from adapter import MCPServer
-
-# Option 1: With create_from_openapi (recommended)
-registry = ToolRegistry.create_from_openapi("https://api.example.com/openapi.json")
-executor = APIExecutor(base_url="https://api.example.com", auth=BearerAuth(token="token"))
-
-server = MCPServer(
-    name="My API Server",
-    version="1.0.0",
-    tool_registry=registry,  # Endpoints included automatically
-    executor=executor
-)
-
-# Option 2: Manual with explicit endpoints (backward compatible)
-server = MCPServer(
-    name="My API Server",
-    version="1.0.0",
-    tool_registry=registry,
-    executor=executor,
-    endpoints=endpoints  # Optional if registry has endpoints
-)
-
-# Run server (stdio transport for Claude Desktop)
-server.run()
-```
-
-#### Configure in Claude Desktop
-
-Add to `claude_desktop_config.json`:
+Or manually add to Claude Code config (typically `~/.claude.json`):
 
 ```json
 {
   "mcpServers": {
-    "myapi": {
-      "command": "python",
-      "args": ["/path/to/your/server.py"]
+    "west-england-ods": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "C:/Users/steve.crawshaw/projects/rest-to-mcp-adapter",
+        "ods_server.py"
+      ],
+      "env": {
+        "LOG_LEVEL": "INFO"
+      }
     }
   }
 }
 ```
 
----
+**For Claude Desktop** (legacy, use Claude Code CLI instead):
 
-## 🔐 Authentication Parameter Filtering
-
-One of the most powerful features is **automatic authentication parameter filtering**. This ensures users never see or need to provide auth-related parameters.
-
-### How It Works
-
-The library uses a **hybrid approach** combining:
-
-1. **Default common parameters**: `signature`, `timestamp`, `api_key`, `authorization`, etc.
-2. **Auto-detected from OpenAPI**: Extracts from `securitySchemes`
-3. **Custom overrides**: You can specify your own
-
-### Default Auth Parameters
-
-```python
-DEFAULT_AUTH_PARAMS = {
-    'signature', 'timestamp', 'recvwindow', 'recv_window',
-    'api_key', 'apikey', 'api_secret', 'apisecret',
-    'access_token', 'accesstoken', 'token',
-    'authorization', 'auth',
-    'nonce', 'sign',
-}
-```
-
-### Auto-Detection Example
-
-```python
-loader = OpenAPILoader()
-spec = loader.load("api.yaml")
-
-# Extract auth params from securitySchemes
-auth_params = loader.extract_auth_parameters(spec)
-# Returns: {'x-api-key', 'signature', ...}
-
-# Use in tool generation
-generator = ToolGenerator(
-    api_name="myapi",
-    auto_detected_auth_params=auth_params
-)
-```
-
-### Supported Security Schemes
-
-| Type | Auto-Detected Parameters |
-|------|--------------------------|
-| `apiKey` | Parameter name from spec |
-| `http` (bearer/basic) | `authorization` |
-| `oauth2` | `authorization`, `access_token`, `token` |
-| `openIdConnect` | `authorization` |
-
-### Example: Before vs After
-
-**Without filtering** (❌ Bad):
-```python
-# User sees auth parameters
-tool.inputSchema = {
-    "properties": {
-        "symbol": {"type": "string"},
-        "timestamp": {"type": "integer"},  # ❌ Exposed
-        "signature": {"type": "string"}     # ❌ Exposed
+```json
+{
+  "mcpServers": {
+    "west-england-ods": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "/absolute/path/to/rest-to-mcp-adapter",
+        "ods_server.py"
+      ],
+      "env": {
+        "LOG_LEVEL": "INFO"
+      }
     }
+  }
 }
-
-# User has to provide them (confusing!)
-client.call_tool("get_price", {
-    "symbol": "BTCUSDT",
-    "timestamp": 1234567890,      # ❌ User shouldn't know this
-    "signature": "abc123..."       # ❌ User shouldn't know this
-})
 ```
 
-**With filtering** (✅ Good):
-```python
-# User only sees business parameters
-tool.inputSchema = {
-    "properties": {
-        "symbol": {"type": "string"}  # ✅ Only what matters
+### 4. Verify Connection
+
+Check the server status:
+
+```bash
+claude mcp list
+```
+
+You should see `west-england-ods` with a ✓ Connected status.
+
+### 5. Test in Claude Code
+
+Ask Claude:
+
+```
+"What datasets are available in OpenDataSoft?"
+```
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ODS_BASE_URL` | Base URL for API | `https://opendata.westofengland-ca.gov.uk/api/explore/v2.1` |
+| `ODS_OPENAPI_URL` | OpenAPI spec URL | `{BASE_URL}/swagger.json` |
+| `ODS_SERVER_NAME` | Server name | `West of England OpenDataSoft` |
+| `ODS_SERVER_VERSION` | Server version | `1.0.0` |
+| `LOG_LEVEL` | Logging level | `INFO` |
+
+### Using a .env File (Optional)
+
+If you want to use a `.env` file instead of passing environment variables through Claude Desktop:
+
+1. Copy the example:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Edit `.env` with your preferences
+
+3. Install python-dotenv:
+
+   ```bash
+   pip install python-dotenv
+   ```
+
+4. Modify `ods_server.py` to load the .env file (add at the top of `main()`):
+
+   ```python
+   from dotenv import load_dotenv
+   load_dotenv()
+   ```
+
+### Configuration via Claude Desktop (Recommended)
+
+Pass environment variables directly in `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "west-england-ods": {
+      "command": "python",
+      "args": ["C:/Users/steve.crawshaw/projects/rest-to-mcp-adapter/ods_server.py"],
+      "env": {
+        "ODS_BASE_URL": "https://opendata.westofengland-ca.gov.uk/api/explore/v2.1",
+        "ODS_SERVER_NAME": "West England Data",
+        "LOG_LEVEL": "DEBUG"
+      }
     }
+  }
 }
-
-# Clean API!
-client.call_tool("get_price", {
-    "symbol": "BTCUSDT"  # ✅ Simple and clear
-})
-# Auth handler adds timestamp and signature automatically
 ```
 
----
+## Available Tools
 
-## 🏗️ Architecture Overview
+The server automatically generates tools for all OpenDataSoft API endpoints. Key tools include:
+
+### Catalog Tools
+
+- **mcp__west-england-ods__ods_get_datasets** - List all available datasets (121 total)
+- **mcp__west-england-ods__ods_get_dataset** - Get metadata for a specific dataset
+- **mcp__west-england-ods__ods_get_datasets_facets** - Enumerate facet values across datasets
+- **mcp__west-england-ods__ods_list_export_formats** - List available export formats
+- **mcp__west-england-ods__ods_export_datasets** - Export catalog in various formats
+
+### Dataset Tools
+
+- **mcp__west-england-ods__ods_get_records** - Query records from a dataset
+- **mcp__west-england-ods__ods_get_record** - Retrieve a single record by ID
+- **mcp__west-england-ods__ods_get_records_facets** - Enumerate facet values for dataset records
+- **mcp__west-england-ods__ods_list_dataset_export_formats** - List export formats for a dataset
+- **mcp__west-england-ods__ods_export_records** - Export dataset records
+- **mcp__west-england-ods__ods_get_dataset_attachments** - Get dataset attachments
+
+### Export Tools
+
+- **mcp__west-england-ods__ods_export_catalog_csv** - Export catalog as CSV
+- **mcp__west-england-ods__ods_export_catalog_dcat** - Export as RDF/XML with DCAT
+- **mcp__west-england-ods__ods_export_records_csv** - Export records as CSV
+- **mcp__west-england-ods__ods_export_records_parquet** - Export records as Parquet
+- **mcp__west-england-ods__ods_export_records_gpx** - Export records as GPX
+
+All tools follow the naming convention: `mcp__west-england-ods__<operation_name>`
+
+## Available Datasets
+
+The West of England Combined Authority hosts **121 datasets** covering:
+
+### Featured Datasets
+
+**Energy & Environment**
+
+- `lep-epc-domestic-point` - Energy Performance Certificates (372,078 properties)
+- `lc_gordano_gen_data` - Low Carbon Energy Generation
+- `wards_solar_install_visits_v4` - Solar Together Installations
+- `swnzh-cef-projects` - Community Energy Fund Projects
+
+**Nature & Ecology**
+
+- `ods-os-open-rivers` - Rivers and watercourses (849 features)
+- `lnrs-areas-important` - Areas of Importance to Biodiversity (1,111 sites)
+- `roadkill-lep-st` - Roadkill observations (833 records)
+- `mapped-river-floodplain-measures-precise` - River floodplain restoration measures
+
+**Demographics & Census**
+
+- `ethnicity_lep_lsoa` - Ethnicity by LSOA (2021 census)
+- `census-2021-dwelling-stock-per-hectare` - Dwelling density by LSOA
+
+**Education & Skills**
+
+- `weca-apprenticeship-starts` - Apprenticeship starts (24,925 records)
+
+**Geography**
+
+- `lep-boundary` - West of England LEP boundary
+- `lsoa-ward-lsoa-lookup-lep` - Geographic lookup tables
+
+To discover more datasets:
 
 ```
-OpenAPI Spec (URL/file/content)
-    ↓
-OpenAPILoader → Parses and dereferences $refs
-    ↓
-Normalizer → Converts to CanonicalEndpoint models
-    ↓
-ToolGenerator → Creates MCP tool definitions
-    ↓
-ToolRegistry → Stores tools and endpoints
-    ↓
-MCPServer → Exposes tools via JSON-RPC (stdio)
-    ↓
-Claude/GPT → Calls tools
-    ↓
-APIExecutor → Executes actual REST API calls
-    ↓
-Response → Returns to agent
+"List all datasets with the theme 'Environment'"
 ```
 
-For detailed architecture documentation, see [ARCHITECTURE.md](ARCHITECTURE.md).
+## User Guide
 
----
+### Understanding Tool Names
 
-## 🌍 Real-World Integrations
+All MCP tools are prefixed with the server name to avoid conflicts:
 
-The REST-to-MCP Adapter powers production MCP servers for real APIs. These example repositories demonstrate complete implementations with different authentication patterns and specification formats.
+- **Pattern**: `mcp__<server-name>__<operation>`
+- **Example**: `mcp__west-england-ods__ods_get_datasets`
 
-### DataForSEO MCP
+You don't need to use the full name when asking Claude - just describe what you want naturally.
 
-**Repository**: https://github.com/pawneetdev/dataforseo-mcp/
+### Common Workflows
 
-Production MCP server for the DataForSEO API demonstrating:
+#### 1. Discovering Datasets
 
-- **Authentication**: HTTP Basic Authentication
-- **Spec Format**: OpenAPI Actions/JSON format
-- **Use Case**: SEO data retrieval and analysis
-- **What You'll Learn**:
-  - Loading OpenAPI JSON specifications
-  - Implementing standard HTTP Basic auth
-  - Organizing tools by API categories
-  - Handling paginated responses
+**List all datasets**:
 
-**Quick Start**:
+```
+"What datasets are available in OpenDataSoft?"
+```
+
+**Find datasets by theme**:
+
+```
+"Show me all Environment-themed datasets"
+```
+
+**Search for specific topics**:
+
+```
+"Find datasets about energy performance or solar panels"
+```
+
+#### 2. Exploring Dataset Details
+
+**Get metadata for a dataset**:
+
+```
+"What is the metadata for the domestic EPC dataset?"
+```
+
+**Check record count**:
+
+```
+"How many records are in the lep-epc-domestic-point dataset?"
+```
+
+**Understand dataset fields**:
+
+```
+"What fields are available in the apprenticeship starts dataset?"
+```
+
+#### 3. Querying Records
+
+**Get sample records**:
+
+```
+"Get 10 records from the rivers dataset"
+```
+
+**Filter by field**:
+
+```
+"Get EPC records where current_energy_rating is 'A'"
+```
+
+**Use ODSQL where clauses**:
+
+```
+"Query the EPC dataset where total_floor_area > 100 and current_energy_rating in ('A', 'B')"
+```
+
+**Order results**:
+
+```
+"Get apprenticeship starts ordered by start_date descending, limit 20"
+```
+
+#### 4. Working with Geographic Data
+
+**Find geographic datasets**:
+
+```
+"Which datasets have geographic data (geo_point_2d or geo_shape)?"
+```
+
+**Query by location**:
+
+```
+"Get biodiversity sites within Bristol"
+```
+
+#### 5. Aggregating Data
+
+**Group by facets**:
+
+```
+"Group EPC records by current_energy_rating and count them"
+```
+
+**Get facet values**:
+
+```
+"What are the available energy ratings in the EPC dataset?"
+```
+
+### Query Parameters
+
+The OpenDataSoft API supports various query parameters:
+
+**Filtering**:
+
+- `where` - ODSQL query expression (e.g., `"age > 18 AND city='Bristol'"`)
+- `refine` - Facet refinement (e.g., `"theme:Environment"`)
+- `exclude` - Exclude facet values
+
+**Pagination**:
+
+- `limit` - Number of results (default: 10, max: 100 for records)
+- `offset` - Starting position
+
+**Selection**:
+
+- `select` - Fields to return (e.g., `"dataset_id, metas.default.title"`)
+
+**Ordering**:
+
+- `order_by` - Sort expression (e.g., `"start_date desc"`)
+
+**Examples**:
+
+```
+"Get 50 EPC records with limit=50 and select only property_type and current_energy_rating fields"
+```
+
+```
+"Query apprenticeships where apps_level='Advanced' with offset=0 and limit=100"
+```
+
+## Usage Examples
+
+### Example 1: Energy Analysis
+
+**Query**: "Analyze the distribution of EPC ratings in the domestic properties dataset"
+
+Claude will:
+
+1. Use `ods_get_dataset` to understand the schema
+2. Use `ods_get_records_facets` to get rating distributions
+3. Present summary statistics
+
+### Example 2: Geographic Exploration
+
+**Query**: "Show me all rivers in the dataset and count them by form (canal, stream, etc.)"
+
+Claude will:
+
+1. Use `ods_get_records` from `ods-os-open-rivers`
+2. Group by the `form` field
+3. Present counts and examples
+
+### Example 3: Time Series Data
+
+**Query**: "Show me apprenticeship starts by month for the last year"
+
+Claude will:
+
+1. Query `weca-apprenticeship-starts` dataset
+2. Filter by date range using `where` clause
+3. Aggregate by month using `group_by`
+4. Present trends
+
+### Example 4: Complex Query
+
+**Query**: "Find all domestic properties with solar panels (photo_supply > 0) that have an energy rating below C, located in Bristol"
+
+Claude will:
+
+1. Query `lep-epc-domestic-point`
+2. Apply multiple filters in `where` clause
+3. Return matching records with relevant fields
+
+### Example 5: Export Data
+
+**Query**: "Export the first 1000 EPC records as CSV"
+
+Claude will:
+
+1. Use `ods_export_records_csv`
+2. Set `limit=1000` and `dataset_id=lep-epc-domestic-point`
+3. Return the CSV data or download link
+
+## Portability & Design Learnings
+
+### Why `uv run --directory`?
+
+The current configuration uses `uv run --directory` instead of a hardcoded `.venv` path. This approach offers several advantages:
+
+**Previous approach (not recommended)**:
+
 ```bash
-git clone https://github.com/pawneetdev/dataforseo-mcp.git
-cd dataforseo-mcp
-pip install -e .
+# Required hardcoded path to .venv
+C:/Users/steve.crawshaw/projects/rest-to-mcp-adapter/.venv/Scripts/python.exe ods_server.py
 ```
 
-See the repository README for complete setup instructions and Claude Desktop integration.
-
----
-
-### Binance MCP
-
-**Repository**: https://github.com/pawneetdev/binance-mcp
-
-Production MCP server for the Binance Spot Trading API demonstrating:
-
-- **Authentication**: Custom HMAC-SHA256 signature-based authentication
-- **Spec Format**: Swagger/OpenAPI YAML format
-- **Use Case**: Cryptocurrency trading and market data
-- **What You'll Learn**:
-  - Loading Swagger YAML specifications
-  - Implementing custom `AuthHandler` with cryptographic signatures
-  - Query string signing with HMAC-SHA256
-  - Automatic timestamp and nonce injection
-  - Advanced parameter filtering for signature-based endpoints
-  - Handling large APIs (100+ endpoints)
-
-**Authentication Pattern**:
-The Binance MCP extends the `AuthHandler` base class to implement Binance's specific requirements:
-- API key in headers (`X-MBX-APIKEY`)
-- Timestamp query parameter (synchronized with server time)
-- HMAC-SHA256 signature of query string
-- Optional `recvWindow` for timing flexibility
-
-This pattern can be adapted for other APIs with signature-based authentication (AWS, Kraken, etc.).
-
-**Quick Start**:
-```bash
-git clone https://github.com/pawneetdev/binance-mcp.git
-cd binance-mcp
-pip install -e .
-```
-
-See the repository README for API key setup, credential management, and Claude Desktop integration.
-
----
-
-### Learning Path
-
-1. **Start with DataForSEO**: Straightforward authentication, standard OpenAPI patterns
-2. **Progress to Binance**: Advanced custom authentication, complex parameter handling
-3. **Build Your Own**: Apply these patterns to your target API
-
-Both repositories include:
-- Complete source code and project structure
-- Production-grade error handling
-- Retry logic and timeout management
-- Claude Desktop configuration examples
-- Deployment documentation
-
----
-
-## 🧪 Testing
+**Current approach (recommended)**:
 
 ```bash
-# Run all tests
-pytest
-
-# With coverage
-pytest --cov=adapter
-
-# Run specific test
-pytest tests/test_tool_generator.py
+# Uses uv with project context
+uv run --directory C:/Users/steve.crawshaw/projects/rest-to-mcp-adapter ods_server.py
 ```
 
----
+**Benefits**:
 
-## 🛣️ Roadmap
+1. ✅ **No .venv dependency**: Works even if you delete/recreate the virtual environment
+2. ✅ **Automatic dependency resolution**: uv reads `pyproject.toml` automatically
+3. ✅ **More portable**: Easier to share or move the project
+4. ✅ **Cleaner config**: No need to manage Python interpreter paths
+5. ✅ **Project-aware**: Automatically uses the `adapter` module from the project context
 
-- ✅ OpenAPI ingestion and normalization
-- ✅ MCP tool generation
-- ✅ Runtime execution engine
-- ✅ MCP server implementation
-- 🔄 Additional loaders (Postman, GraphQL)
-- 📋 WebSocket transport, enhanced caching
+### Future: Inline Dependencies with PEP 723
 
----
+Once `rest-to-mcp-adapter` is published to PyPI, the server could use inline script metadata for complete portability:
 
-## 🤝 Contributing
+```python
+#!/usr/bin/env python3
+# /// script
+# dependencies = [
+#     "rest-to-mcp-adapter>=0.2.0b1",
+# ]
+# ///
+```
 
-We welcome contributions from the community! Whether you're fixing bugs, adding features, or improving documentation, your help is appreciated.
+Then the config would simply be:
 
-### How to Contribute
+```bash
+uv run ods_server.py  # No --directory needed!
+```
 
-1. **Fork the repository** on GitHub
-2. **Clone your fork** locally:
+This would make the script fully self-contained and runnable from anywhere.
+
+### Project Structure Notes
+
+The server relies on:
+
+- **`adapter/` module** - Core library from this project
+- **`pyproject.toml`** - Dependencies and project metadata
+- **`ods_server.py`** - MCP server implementation
+
+Using `uv run --directory` ensures all three are correctly resolved without manual path management.
+
+## Troubleshooting
+
+### Server Not Connecting
+
+1. **Check server status**:
+
    ```bash
-   git clone https://github.com/your-username/rest-to-mcp-adapter.git
-   cd rest-to-mcp-adapter
+   claude mcp list
    ```
-3. **Create a branch** for your changes:
+
+   Look for `west-england-ods` with ✓ Connected status.
+
+2. **Verify uv is installed**:
+
    ```bash
-   git checkout -b feature/your-feature-name
+   uv --version
    ```
-4. **Install development dependencies**:
+
+   If not installed, see: <https://docs.astral.sh/uv/getting-started/installation/>
+
+3. **Test server manually**:
+
    ```bash
-   pip install -e .
-   pip install pytest pytest-cov black ruff
+   cd C:/Users/steve.crawshaw/projects/rest-to-mcp-adapter
+   uv run ods_server.py
    ```
-5. **Make your changes** and ensure tests pass:
+
+   Server should start and show log output. Press Ctrl+C to stop.
+
+4. **Check project dependencies**:
+
    ```bash
-   pytest
+   cd C:/Users/steve.crawshaw/projects/rest-to-mcp-adapter
+   uv sync
    ```
-6. **Format your code**:
+
+5. **Verify absolute path**: The `--directory` argument must be an absolute path:
+   - ✅ Good: `C:/Users/steve.crawshaw/projects/rest-to-mcp-adapter`
+   - ❌ Bad: `./rest-to-mcp-adapter` or `~/projects/rest-to-mcp-adapter`
+
+### Server Starting but No Tools Available
+
+1. **Verify OpenAPI spec is accessible**:
+
    ```bash
-   black .
-   ruff check .
+   curl https://opendata.westofengland-ca.gov.uk/api/explore/v2.1/swagger.json
    ```
-7. **Commit and push** your changes:
+
+2. **Check network connectivity**: Ensure you can reach `opendata.westofengland-ca.gov.uk`
+
+3. **Review server logs**: Look for error messages in stderr output
+
+### Server Crashes on Startup
+
+1. **Sync dependencies**:
+
    ```bash
-   git add .
-   git commit -m "Description of your changes"
-   git push origin feature/your-feature-name
+   cd C:/Users/steve.crawshaw/projects/rest-to-mcp-adapter
+   uv sync
    ```
-8. **Open a Pull Request** on GitHub
 
-### Areas We're Looking For Help
+2. **Verify library can be imported**:
 
-- **Additional authentication methods** (OAuth2 flows, custom schemes)
-- **Performance optimizations** (caching, parallel processing)
-- **More loaders** (Postman collections, GraphQL schemas, API Blueprint)
-- **Documentation improvements** (tutorials, examples, API docs)
-- **Real-world usage examples** (new MCP server implementations)
-- **Testing** (edge cases, integration tests, CI/CD improvements)
+   ```bash
+   uv run python -c "from adapter import ToolRegistry, MCPServer, APIExecutor, NoAuth; print('OK')"
+   ```
 
-### Development Guidelines
+3. **Test with debug logging**:
+   Update MCP config to enable debug logs:
 
-- Follow existing code style and patterns
-- Add tests for new features
-- Update documentation as needed
-- Keep changes focused and atomic
-- Write clear commit messages
+   ```bash
+   claude mcp remove west-england-ods
+   claude mcp add west-england-ods "uv run --directory C:/Users/steve.crawshaw/projects/rest-to-mcp-adapter ods_server.py" --env LOG_LEVEL=DEBUG
+   ```
 
-### Reporting Issues
+   Or manually edit config:
 
-Found a bug or have a feature request? Please [open an issue](https://github.com/pawneetdev/rest-to-mcp-adapter/issues) with:
-- Clear description of the problem/feature
-- Steps to reproduce (for bugs)
-- Expected vs actual behavior
-- Relevant code snippets or examples
+   ```json
+   "env": {
+     "LOG_LEVEL": "DEBUG"
+   }
+   ```
 
----
+4. **Check uv can find pyproject.toml**:
 
-## 📄 License
+   ```bash
+   ls C:/Users/steve.crawshaw/projects/rest-to-mcp-adapter/pyproject.toml
+   ```
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+### API Calls Failing
 
-Copyright (c) 2025 Pawneet Singh
+1. **Check API availability**: Visit <https://opendata.westofengland-ca.gov.uk> in your browser
 
----
+2. **Review retry settings**: The server retries failed requests up to 3 times with exponential backoff
 
-## 🙋 Support
+3. **Check for rate limiting**: The API may have rate limits (though unlikely for public endpoints)
 
-- **Issues**: [GitHub Issues](https://github.com/pawneetdev/rest-to-mcp-adapter/issues)
-- **PyPI Package**: [rest-to-mcp-adapter](https://pypi.org/project/rest-to-mcp-adapter/)
+### Debugging Tips
 
----
+**Enable debug logging** via MCP config:
 
-## 🙏 Acknowledgments
+```bash
+claude mcp remove west-england-ods
+claude mcp add west-england-ods "uv run --directory C:/Users/steve.crawshaw/projects/rest-to-mcp-adapter ods_server.py" --env LOG_LEVEL=DEBUG
+```
 
-This library was developed with significant assistance from **Claude** (Anthropic), an AI assistant that helped with:
-- Architecture design and implementation
-- Code review and optimization
-- Documentation and examples
-- Testing and debugging
+**Run manually to see logs** (Windows):
 
-Special thanks to the AI agent and MCP communities for inspiration and feedback.
+```bash
+set LOG_LEVEL=DEBUG
+cd C:/Users/steve.crawshaw/projects/rest-to-mcp-adapter
+uv run ods_server.py
+```
 
----
+**Run manually to see logs** (Mac/Linux):
 
-**Built with ❤️ for the AI agent ecosystem**
+```bash
+export LOG_LEVEL=DEBUG
+cd C:/Users/steve.crawshaw/projects/rest-to-mcp-adapter
+uv run ods_server.py
+```
+
+**Test OpenAPI loading**:
+
+```bash
+cd C:/Users/steve.crawshaw/projects/rest-to-mcp-adapter
+uv run python -c "from adapter import OpenAPILoader; loader = OpenAPILoader(); spec = loader.load('https://opendata.westofengland-ca.gov.uk/api/explore/v2.1/swagger.json'); print(f'Loaded {len(spec.get(\"paths\", {}))} endpoints')"
+```
+
+**Check tool generation**:
+
+```bash
+cd C:/Users/steve.crawshaw/projects/rest-to-mcp-adapter
+uv run python -c "from adapter import ToolRegistry; registry = ToolRegistry.create_from_openapi('https://opendata.westofengland-ca.gov.uk/api/explore/v2.1/swagger.json', api_name='ods'); print(f'{registry.count()} tools: {registry.get_tool_names()}')"
+```
+
+**View MCP server logs** (if using Claude Desktop):
+
+- Windows: `%APPDATA%\Claude\logs\`
+- Mac: `~/Library/Logs/Claude/`
+
+**Check Claude Code status**:
+
+```bash
+claude mcp list
+claude mcp get west-england-ods
+```
+
+## Architecture
+
+This server is built on the `rest-to-mcp-adapter` library and follows a 4-phase pipeline:
+
+1. **Load**: Fetch and parse OpenAPI specification from the ODS API
+2. **Normalize**: Convert to canonical endpoint format
+3. **Generate**: Create MCP tool definitions with proper JSON schemas
+4. **Execute**: Run the MCP server with stdio transport
+
+For more details, see the main project:
+
+- [README.md](README.md) - Library overview and usage
+- [ARCHITECTURE.md](ARCHITECTURE.md) - Design decisions and architecture
+- [LIBRARY_USAGE.md](LIBRARY_USAGE.md) - Advanced usage patterns
+
+## Extending to Other OpenDataSoft Instances
+
+This server is configured for West of England, but you can easily adapt it for any OpenDataSoft instance:
+
+1. **Create a new server script** (e.g., `ods_custom_server.py`)
+2. **Change the default URLs**:
+
+   ```python
+   'base_url': os.getenv(
+       'ODS_BASE_URL',
+       'https://your-custom-instance.opendatasoft.com/api/explore/v2.1'
+   ),
+   ```
+
+3. **Update the API name** to avoid conflicts:
+
+   ```python
+   registry = ToolRegistry.create_from_openapi(
+       source=config['openapi_url'],
+       api_name="custom_ods",  # Change this prefix
+   )
+   ```
+
+4. **Add to Claude Desktop config** with a different key
+
+## Performance Notes
+
+- **Startup time**: First load fetches and parses the OpenAPI spec (typically 1-3 seconds)
+- **Tool count**: 12 tools for West of England OpenDataSoft API
+- **Request timeout**: 30 seconds (configurable in `APIExecutor`)
+- **Retry logic**: 3 attempts with exponential backoff
+- **Memory usage**: Minimal (~50-100 MB)
+- **Response times**: Typical queries complete in 200-500ms
+
+## Quick Reference
+
+### Installation & Setup
+
+```bash
+# 1. Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh  # Mac/Linux
+# or download from: https://docs.astral.sh/uv/getting-started/installation/
+
+# 2. Add MCP server
+claude mcp add west-england-ods "uv run --directory C:/Users/steve.crawshaw/projects/rest-to-mcp-adapter ods_server.py"
+
+# 3. Verify connection
+claude mcp list
+
+# 4. Test in Claude Code
+# Ask: "What datasets are available in OpenDataSoft?"
+```
+
+### Common Commands
+
+```bash
+# List MCP servers
+claude mcp list
+
+# Get server details
+claude mcp get west-england-ods
+
+# Remove server
+claude mcp remove west-england-ods
+
+# Test server manually
+cd C:/Users/steve.crawshaw/projects/rest-to-mcp-adapter
+uv run ods_server.py
+
+# Sync dependencies
+uv sync
+
+# Enable debug logging
+claude mcp add west-england-ods "uv run --directory C:/path/to/project ods_server.py" --env LOG_LEVEL=DEBUG
+```
+
+### Useful Queries
+
+```
+"List all available datasets"
+"What is the metadata for the domestic EPC dataset?"
+"How many records are in lep-epc-domestic-point?"
+"Get 10 sample records from the rivers dataset"
+"Find all datasets with geographic data"
+"Query EPCs where current_energy_rating='A' and limit to 50 results"
+"Export the first 1000 apprenticeship records as CSV"
+```
+
+### Dataset IDs Reference
+
+| Dataset ID | Description | Records |
+|------------|-------------|---------|
+| `lep-epc-domestic-point` | Energy Performance Certificates | 372,078 |
+| `weca-apprenticeship-starts` | Apprenticeship Starts | 24,925 |
+| `lnrs-areas-important` | Biodiversity Areas | 1,111 |
+| `ods-os-open-rivers` | Rivers & Watercourses | 849 |
+| `roadkill-lep-st` | Roadkill Observations | 833 |
+| `ethnicity_lep_lsoa` | Ethnicity by LSOA | 699 |
+| `census-2021-dwelling-stock-per-hectare` | Dwelling Density | 699 |
+
+See full list: Ask Claude "List all datasets"
+
+## Support
+
+For issues specific to this ODS server implementation:
+
+- Check this README's troubleshooting section
+- Review the main project [README.md](README.md)
+- Open an issue on the rest-to-mcp-adapter repository
+
+For questions about the West of England OpenDataSoft API:
+
+- Visit: <https://opendata.westofengland-ca.gov.uk>
+- API documentation: <https://opendata.westofengland-ca.gov.uk/api/explore/v2.1>
+
+## License
+
+This server implementation inherits the MIT license from the `rest-to-mcp-adapter` project.
+
+## Related Resources
+
+- **OpenDataSoft Documentation**: <https://help.opendatasoft.com/apis/ods-search-v2/>
+- **MCP Protocol**: <https://modelcontextprotocol.io/>
+- **Claude Desktop**: <https://claude.ai/download>
