@@ -1,6 +1,17 @@
+# MCP Servers for Claude
+
+This repository provides multiple MCP (Model Context Protocol) servers that give Claude Code access to various public APIs. All servers are built using the [rest-to-mcp-adapter](https://github.com/pawneetdev/rest-to-mcp-adapter) library, which automatically generates MCP tools from OpenAPI specifications.
+
+## Available Servers
+
+1. **[West of England OpenDataSoft](#west-of-england-opendatasoft-mcp-server)** - Regional data including transportation, demographics, planning, and statistics (121 datasets)
+2. **[UK Energy Performance Certificates (EPC)](#uk-energy-performance-certificates-epc-mcp-server)** - Building energy ratings, certificates, and improvement recommendations
+
+---
+
 # West of England OpenDataSoft MCP Server
 
-This MCP server provides Claude with access to the West of England Combined Authority's OpenDataSoft API, enabling exploration of public datasets including transportation, demographics, planning, and regional statistics. It was created using the code in this [repo](https://github.com/pawneetdev/rest-to-mcp-adapter).
+This MCP server provides Claude with access to the West of England Combined Authority's OpenDataSoft API, enabling exploration of public datasets including transportation, demographics, planning, and regional statistics.
 
 ## Features
 
@@ -753,25 +764,575 @@ claude mcp add west-england-ods "uv run --directory C:/path/to/project ods_serve
 
 See full list: Ask Claude "List all datasets"
 
+---
+
+# UK Energy Performance Certificates (EPC) MCP Server
+
+This MCP server provides Claude Code with access to the UK Government's Energy Performance Certificates API, enabling queries on domestic and non-domestic building energy ratings, detailed certificates, and energy improvement recommendations.
+
+## Features
+
+- **Comprehensive Coverage**: Access to domestic, non-domestic, and display energy certificates
+- **Rich Search Capabilities**: Search by postcode, address, UPRN, energy rating, property type, and more
+- **Detailed Data**: Full certificate details including energy ratings, costs, recommendations, and building characteristics
+- **Authenticated Access**: Uses HTTP Basic Authentication with registered credentials
+- **Auto-generated Tools**: All API endpoints automatically converted to MCP tools
+- **Robust Execution**: Built-in retry logic and error handling
+
+## Quick Start
+
+### 1. Prerequisites
+
+- **uv** package manager installed ([installation guide](https://docs.astral.sh/uv/getting-started/installation/))
+- **Claude Code CLI** installed ([installation guide](https://github.com/anthropics/claude-code))
+- **EPC API Credentials** - Register at [epc.opendatacommunities.org](https://epc.opendatacommunities.org)
+
+### 2. Get API Credentials
+
+1. Visit [https://epc.opendatacommunities.org](https://epc.opendatacommunities.org)
+2. Sign up or sign in with your email address
+3. Once signed in, your credentials are shown in the footer:
+   - **Username**: Your registered email address
+   - **Password**: Your API key (a long alphanumeric string)
+
+### 3. Configure Claude Code
+
+Add the MCP server using the Claude Code CLI with your credentials:
+
+```bash
+claude mcp add epc-certificates \
+  "uv run --directory C:/Users/steve.crawshaw/projects/rest-to-mcp-adapter epc_server.py" \
+  --env EPC_USERNAME="your-email@example.com" \
+  --env EPC_PASSWORD="your-api-key-here"
+```
+
+Or manually add to Claude Code config (`~/.claude.json`):
+
+```json
+{
+  "mcpServers": {
+    "epc-certificates": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "C:/Users/steve.crawshaw/projects/rest-to-mcp-adapter",
+        "epc_server.py"
+      ],
+      "env": {
+        "EPC_USERNAME": "your-email@example.com",
+        "EPC_PASSWORD": "your-api-key-here",
+        "LOG_LEVEL": "INFO"
+      }
+    }
+  }
+}
+```
+
+**Important**: Replace `your-email@example.com` and `your-api-key-here` with your actual credentials from the EPC website.
+
+### 4. Verify Connection
+
+Check the server status:
+
+```bash
+claude mcp list
+```
+
+You should see `epc-certificates` with a ✓ Connected status.
+
+### 5. Test in Claude Code
+
+Ask Claude:
+
+```
+"Get domestic EPC certificates for postcode BS14 9AE"
+```
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `EPC_USERNAME` | Your registered email address | - | ✓ |
+| `EPC_PASSWORD` | Your API key from the EPC website | - | ✓ |
+| `EPC_BASE_URL` | Base URL for API | `https://epc.opendatacommunities.org` | |
+| `EPC_OPENAPI_PATH` | Path to OpenAPI spec | `epc.yml` | |
+| `EPC_SERVER_NAME` | Server name | `UK Energy Performance Certificates` | |
+| `EPC_SERVER_VERSION` | Server version | `1.0.0` | |
+| `LOG_LEVEL` | Logging level | `INFO` | |
+
+## Available Tools
+
+The server automatically generates tools for all EPC API endpoints. All tools follow the naming convention: `mcp__epc-certificates__<operation_name>`
+
+### Domestic Certificates
+
+- **epc_get_domestic_search** - Search for domestic EPCs by postcode, address, UPRN, energy rating, etc.
+- **epc_get_domestic_certificate** - Get full details for a specific domestic certificate by lmk-key
+- **epc_get_domestic_recommendations** - Get energy improvement recommendations for a property
+
+### Non-Domestic Certificates
+
+- **epc_get_non_domestic_search** - Search for non-domestic (commercial) EPCs
+- **epc_get_non_domestic_certificate** - Get full details for a specific non-domestic certificate
+- **epc_get_non_domestic_recommendations** - Get improvement recommendations for commercial properties
+
+### Display Energy Certificates
+
+- **epc_get_display_search** - Search for display energy certificates (public buildings)
+- **epc_get_display_certificate** - Get full details for a specific display certificate
+- **epc_get_display_recommendations** - Get recommendations for public buildings
+
+### General & Downloads
+
+- **epc_get_info** - Get metadata about the EPC datasets (no authentication required)
+- **epc_list_files** - List available bulk download files
+- **epc_download_file** - Download bulk EPC data files
+
+## Understanding EPC Data
+
+### Certificate Types
+
+**Domestic EPCs**
+- Residential properties (houses, flats, bungalows)
+- Energy ratings A-G based on cost (A = most efficient)
+- Required for sales and rentals
+- Valid for 10 years
+
+**Non-Domestic EPCs**
+- Commercial and public buildings
+- Energy ratings A+ to G based on CO₂ emissions
+- Required for commercial property transactions
+- Valid for 10 years
+
+**Display Energy Certificates (DECs)**
+- Public buildings over 500m²
+- Shows actual energy usage
+- Must be displayed in building
+- Renewed annually or every 10 years
+
+### Energy Ratings
+
+**Domestic (based on energy cost £/m²/year)**
+- **A** - 92+ (most efficient)
+- **B** - 81-91
+- **C** - 69-80
+- **D** - 55-68
+- **E** - 39-54
+- **F** - 21-38
+- **G** - 1-20 (least efficient)
+
+**Non-Domestic (based on CO₂ emissions kg/m²)**
+- **A+** - Net zero
+- **A** - 0-25
+- **B** - 26-50
+- **C** - 51-75
+- **D** - 76-100
+- **E** - 101-125
+- **F** - 126-150
+- **G** - 150+
+
+### Key Fields
+
+Common fields in EPC data:
+
+- `lmk-key` - Unique certificate identifier (required for detailed queries)
+- `address1`, `postcode` - Property location
+- `current-energy-rating` / `current-energy-efficiency` - Current rating and score
+- `potential-energy-rating` / `potential-energy-efficiency` - Potential after improvements
+- `total-floor-area` - Property size in m²
+- `property-type` - House, Flat, Bungalow, etc.
+- `inspection-date` - When the EPC was conducted
+- `uprn` - Unique Property Reference Number
+
+## User Guide
+
+### Common Workflows
+
+#### 1. Search by Location
+
+**Find all properties in a postcode**:
+```
+"Get domestic EPCs for postcode SW1A 1AA"
+```
+
+**Search by partial postcode**:
+```
+"Find domestic EPCs in postcode area BS14"
+```
+
+**Search by address**:
+```
+"Find EPCs for properties on Oxford Street"
+```
+
+**Search by UPRN** (Unique Property Reference Number):
+```
+"Get the EPC for UPRN 100023336956"
+```
+
+#### 2. Filter by Energy Rating
+
+**Find efficient properties**:
+```
+"Get domestic EPCs with energy rating A or B in postcode BS14 9AE"
+```
+
+**Find properties needing improvement**:
+```
+"Search for domestic EPCs rated F or G in Bristol"
+```
+
+#### 3. Get Certificate Details
+
+**Get full certificate information**:
+```
+"Get the full domestic certificate for lmk-key 59a7cfd2212a75cba8179746ff9236c063782f340257608d89c21a8641a093a1"
+```
+
+**Get improvement recommendations**:
+```
+"What are the recommendations for lmk-key 59a7cfd2212a75cba8179746ff9236c063782f340257608d89c21a8641a093a1?"
+```
+
+#### 4. Filter by Property Characteristics
+
+**Search by property type**:
+```
+"Find all flats with EPCs in postcode area E1"
+```
+
+**Filter by floor area**:
+```
+"Get domestic EPCs for large properties (>150m²) in Bristol"
+```
+
+**Combine multiple filters**:
+```
+"Find semi-detached houses rated C or better in postcode BS14, built between 1930-1949"
+```
+
+#### 5. Time-Based Queries
+
+**Recent certificates**:
+```
+"Get domestic EPCs from 2024 in postcode area BS14"
+```
+
+**Certificates in a date range**:
+```
+"Find EPCs issued between January 2023 and December 2023 in Bristol"
+```
+
+#### 6. Commercial Properties
+
+**Search non-domestic EPCs**:
+```
+"Find office buildings with EPCs in postcode area EC1"
+```
+
+**Display certificates for public buildings**:
+```
+"Get display energy certificates for schools in Manchester"
+```
+
+### Search Parameters
+
+The EPC API supports various search parameters:
+
+**Location Filters**:
+- `postcode` - Full or partial postcode (e.g., "BS14 9AE", "BS14", "BS")
+- `address` - Address string (e.g., "Oxford Street")
+- `uprn` - Unique Property Reference Number
+- `local_authority` - Local authority code (e.g., "E06000023")
+- `constituency` - Constituency code (e.g., "E14000601")
+
+**Property Filters (Domestic)**:
+- `property_type` - `house`, `flat`, `bungalow`, `maisonette`, `parkhome`
+- `energy_band` - `a`, `b`, `c`, `d`, `e`, `f`, `g`
+- `floor_area` - `unknown`, `s`, `m`, `l`, `xl`, `xxl`
+
+**Date Filters**:
+- `from_year` / `from_month` - Start of date range (e.g., 2023, 1)
+- `to_year` / `to_month` - End of date range (e.g., 2024, 12)
+
+**Pagination**:
+- `size` - Number of results (max 5,000)
+- `search_after` - Token for next page (for large result sets)
+- `from` - Offset (deprecated, use `search_after` instead)
+
+## Usage Examples
+
+### Example 1: Analyze Energy Efficiency in an Area
+
+**Query**: "Analyze the energy efficiency distribution for domestic properties in postcode BS14 9AE"
+
+Claude will:
+1. Use `epc_get_domestic_search` with `postcode=BS14 9AE`
+2. Analyze the distribution of current energy ratings
+3. Identify common property types and characteristics
+4. Suggest areas for improvement
+
+### Example 2: Property-Specific Improvements
+
+**Query**: "What improvements are recommended for 4 Imperial Walk, BS14 9AE?"
+
+Claude will:
+1. Search for the property using `epc_get_domestic_search`
+2. Extract the `lmk-key` from results
+3. Use `epc_get_domestic_recommendations` to get specific recommendations
+4. Present improvement measures with estimated costs and savings
+
+### Example 3: Commercial Building Analysis
+
+**Query**: "Find all office buildings rated D or worse in central London"
+
+Claude will:
+1. Use `epc_get_non_domestic_search` with property type and energy filters
+2. Filter by location (London postcodes)
+3. Present buildings with poor ratings
+4. Highlight potential for improvement
+
+### Example 4: Trend Analysis
+
+**Query**: "Compare EPC ratings for properties certificated in 2020 vs 2024 in Bristol"
+
+Claude will:
+1. Query domestic EPCs with date ranges
+2. Group by energy rating and year
+3. Calculate statistics and trends
+4. Present insights on energy efficiency improvements
+
+### Example 5: Data Export
+
+**Query**: "Download bulk EPC data for offline analysis"
+
+Claude will:
+1. Use `epc_list_files` to show available bulk downloads
+2. Help you select the appropriate dataset
+3. Use `epc_download_file` to retrieve the data
+
+## Data Coverage
+
+The EPC database contains:
+- **20+ million domestic EPCs** (England and Wales)
+- **500,000+ non-domestic EPCs**
+- **50,000+ display energy certificates**
+- Coverage from 2008 to present
+- Updated daily with new certificates
+
+## API Limits and Best Practices
+
+### Rate Limits
+- Maximum 5,000 results per query
+- Use `search_after` pagination for larger datasets
+- Be respectful of API resources
+
+### Performance Tips
+1. **Use specific postcodes** instead of broad searches
+2. **Limit result size** with the `size` parameter
+3. **Use search_after** for pagination instead of `from` offset
+4. **Filter early** - apply property type and rating filters to reduce result sets
+5. **Cache lmk-keys** for properties you query frequently
+
+### Data Quality Notes
+- Some older certificates may have missing fields
+- Property locations are based on registered addresses
+- Energy ratings reflect the property at inspection time
+- Recommendations are based on standard assumptions
+
+## Troubleshooting
+
+### Authentication Errors
+
+**"401 Unauthorized" or "403 Forbidden"**:
+1. Verify your credentials are correct
+2. Check that `EPC_USERNAME` is your registered email
+3. Confirm `EPC_PASSWORD` is your API key (not your account password)
+4. Ensure you're signed up at [epc.opendatacommunities.org](https://epc.opendatacommunities.org)
+
+### No Results Returned
+
+1. **Check postcode format**: Use full postcodes (e.g., "BS14 9AE") or partial (e.g., "BS14")
+2. **Verify property exists**: Not all properties have EPCs
+3. **Check date filters**: Ensure date range includes certificates
+4. **Review filter combinations**: Overly restrictive filters may return no results
+
+### Server Not Connecting
+
+1. **Verify uv is installed**:
+   ```bash
+   uv --version
+   ```
+
+2. **Test credentials manually**:
+   ```bash
+   cd C:/Users/steve.crawshaw/projects/rest-to-mcp-adapter
+   export EPC_USERNAME="your-email@example.com"
+   export EPC_PASSWORD="your-api-key"
+   uv run epc_server.py
+   ```
+
+3. **Check server status**:
+   ```bash
+   claude mcp list
+   claude mcp get epc-certificates
+   ```
+
+4. **Sync dependencies**:
+   ```bash
+   cd C:/Users/steve.crawshaw/projects/rest-to-mcp-adapter
+   uv sync
+   ```
+
+### Debugging
+
+**Enable debug logging**:
+
+```bash
+claude mcp remove epc-certificates
+claude mcp add epc-certificates \
+  "uv run --directory C:/path/to/repo epc_server.py" \
+  --env EPC_USERNAME="email" \
+  --env EPC_PASSWORD="key" \
+  --env LOG_LEVEL=DEBUG
+```
+
+**Test API connection manually**:
+
+```bash
+curl -u "your-email@example.com:your-api-key" \
+  "https://epc.opendatacommunities.org/api/v1/domestic/search?postcode=SW1A+1AA&size=10"
+```
+
+**Verify OpenAPI spec loading**:
+
+```bash
+cd C:/Users/steve.crawshaw/projects/rest-to-mcp-adapter
+uv run python -c "from adapter import OpenAPILoader; loader = OpenAPILoader(); spec = loader.load('epc.yml'); print(f'Loaded {len(spec.get(\"paths\", {}))} endpoints')"
+```
+
+## Architecture
+
+This server is built on the `rest-to-mcp-adapter` library and follows a 4-phase pipeline:
+
+1. **Load**: Parse the local OpenAPI specification (`epc.yml`)
+2. **Normalize**: Convert to canonical endpoint format
+3. **Generate**: Create MCP tool definitions with proper JSON schemas
+4. **Execute**: Run the MCP server with stdio transport and BasicAuth
+
+For more details, see the main project documentation:
+- [ARCHITECTURE.md](ARCHITECTURE.md) - Design decisions and architecture
+- [LIBRARY_USAGE.md](LIBRARY_USAGE.md) - Advanced usage patterns
+
+## Privacy and Data Usage
+
+- All data is from official UK Government sources
+- EPCs are public records for property transparency
+- Queries are logged by the API provider
+- Use responsibly and comply with data protection regulations
+- Do not use for unauthorized commercial purposes
+
+## Quick Reference
+
+### Installation & Setup
+
+```bash
+# 1. Get API credentials from https://epc.opendatacommunities.org
+
+# 2. Add MCP server with credentials
+claude mcp add epc-certificates \
+  "uv run --directory C:/Users/steve.crawshaw/projects/rest-to-mcp-adapter epc_server.py" \
+  --env EPC_USERNAME="your-email@example.com" \
+  --env EPC_PASSWORD="your-api-key-here"
+
+# 3. Verify connection
+claude mcp list
+
+# 4. Test in Claude Code
+# Ask: "Get domestic EPCs for postcode SW1A 1AA"
+```
+
+### Common Commands
+
+```bash
+# List MCP servers
+claude mcp list
+
+# Get server details
+claude mcp get epc-certificates
+
+# Remove server
+claude mcp remove epc-certificates
+
+# Test server manually (set credentials first)
+cd C:/Users/steve.crawshaw/projects/rest-to-mcp-adapter
+export EPC_USERNAME="your-email"
+export EPC_PASSWORD="your-api-key"
+uv run epc_server.py
+```
+
+### Useful Queries
+
+```
+"Get domestic EPCs for postcode BS14 9AE"
+"Find properties with energy rating A in London"
+"What are the recommendations for lmk-key <key>?"
+"Get the full certificate details for <lmk-key>"
+"Find all office buildings in Manchester with EPCs"
+"List available bulk download files"
+"Get non-domestic EPCs for postcode EC1"
+```
+
+### Energy Band Reference
+
+| Band | Domestic (£/m²/yr) | Non-Domestic (kg CO₂/m²) |
+|------|-------------------|--------------------------|
+| A+ | - | Net zero |
+| A | 92+ | 0-25 |
+| B | 81-91 | 26-50 |
+| C | 69-80 | 51-75 |
+| D | 55-68 | 76-100 |
+| E | 39-54 | 101-125 |
+| F | 21-38 | 126-150 |
+| G | 1-20 | 150+ |
+
+---
+
 ## Support
 
-For issues specific to this ODS server implementation:
+### For General Issues
 
-- Check this README's troubleshooting section
-- Review the main project [README.md](README.md)
-- Open an issue on the rest-to-mcp-adapter repository
+For questions about the `rest-to-mcp-adapter` library or MCP server implementations:
 
-For questions about the West of England OpenDataSoft API:
+- Review this README's troubleshooting sections
+- Check the main project documentation:
+  - [ARCHITECTURE.md](ARCHITECTURE.md) - Design decisions and architecture
+  - [LIBRARY_USAGE.md](LIBRARY_USAGE.md) - Advanced usage patterns
+  - [CLAUDE.md](CLAUDE.md) - Claude Code development guide
+- Open an issue on the [rest-to-mcp-adapter repository](https://github.com/pawneetdev/rest-to-mcp-adapter)
 
-- Visit: <https://opendata.westofengland-ca.gov.uk>
-- API documentation: <https://opendata.westofengland-ca.gov.uk/api/explore/v2.1>
+### For API-Specific Questions
+
+**West of England OpenDataSoft API**:
+- Website: <https://opendata.westofengland-ca.gov.uk>
+- API Documentation: <https://opendata.westofengland-ca.gov.uk/api/explore/v2.1>
+- OpenDataSoft API Docs: <https://help.opendatasoft.com/apis/ods-search-v2/>
+
+**UK Energy Performance Certificates API**:
+- Website: <https://epc.opendatacommunities.org>
+- API Documentation: <https://epc.opendatacommunities.org/docs>
+- Register for API Access: <https://epc.opendatacommunities.org> (sign up/sign in)
 
 ## License
 
-This server implementation inherits the MIT license from the `rest-to-mcp-adapter` project.
+These MCP server implementations inherit the MIT license from the `rest-to-mcp-adapter` project.
 
 ## Related Resources
 
-- **OpenDataSoft Documentation**: <https://help.opendatasoft.com/apis/ods-search-v2/>
 - **MCP Protocol**: <https://modelcontextprotocol.io/>
-- **Claude Desktop**: <https://claude.ai/download>
+- **Claude Code**: <https://github.com/anthropics/claude-code>
+- **rest-to-mcp-adapter**: <https://github.com/pawneetdev/rest-to-mcp-adapter>
+- **uv Package Manager**: <https://docs.astral.sh/uv/>
