@@ -30,8 +30,10 @@ from adapter import (
     APIExecutor,
     NoAuth,
 )
+from adapter.mcp.tool_generator import ToolGenerator
 from ods_auth_resolver import ODSAuthResolver
 from ods_execution_handler import ODSExecutionHandler
+from ods_monitoring_generator import ODSMonitoringGenerator
 
 
 def setup_logging(level: str = "INFO") -> None:
@@ -103,13 +105,48 @@ def create_ods_server(config: dict) -> MCPServer:
             include_metadata=True,  # Include HTTP method, path, tags, etc.
         )
 
-        logger.info(f"Created registry with {registry.count()} tools")
+        logger.info(f"Created registry with {registry.count()} catalog tools")
 
         # Log first few tool names for verification
         tool_names = registry.get_tool_names()
         if tool_names:
             preview = ', '.join(tool_names[:5])
-            logger.info(f"Sample tools: {preview}{'...' if len(tool_names) > 5 else ''}")
+            logger.info(f"Sample catalog tools: {preview}{'...' if len(tool_names) > 5 else ''}")
+
+        # Generate monitoring endpoints from catalog endpoints
+        logger.info("Generating monitoring endpoints...")
+        monitoring_generator = ODSMonitoringGenerator()
+        catalog_endpoints = registry.get_all_endpoints()
+        monitoring_endpoints = monitoring_generator.generate_monitoring_endpoints(
+            catalog_endpoints
+        )
+
+        # Generate MCP tools from monitoring endpoints
+        if monitoring_endpoints:
+            tool_generator = ToolGenerator(
+                api_name="ods",
+                auto_detected_auth_params=['apikey'],  # Monitoring uses apikey
+                include_metadata=True,
+            )
+            monitoring_tools = tool_generator.generate_tools(monitoring_endpoints)
+
+            # Add monitoring tools to registry
+            for tool in monitoring_tools:
+                registry.add_tool(tool)
+
+            # Store all endpoints (catalog + monitoring) together
+            all_endpoints = catalog_endpoints + monitoring_endpoints
+            registry.set_endpoints(all_endpoints)
+
+            logger.info(f"Added {len(monitoring_tools)} monitoring tools to registry")
+
+            # Log sample monitoring tool names
+            monitoring_tool_names = [t.name for t in monitoring_tools]
+            if monitoring_tool_names:
+                preview = ', '.join(monitoring_tool_names[:3])
+                logger.info(f"Sample monitoring tools: {preview}{'...' if len(monitoring_tool_names) > 3 else ''}")
+
+        logger.info(f"Total tools in registry: {registry.count()}")
 
         # Phase 4: Set up executor with NoAuth as default
         # (auth will be swapped conditionally by ODSExecutionHandler)
