@@ -30,6 +30,8 @@ from adapter import (
     APIExecutor,
     NoAuth,
 )
+from ods_auth_resolver import ODSAuthResolver
+from ods_execution_handler import ODSExecutionHandler
 
 
 def setup_logging(level: str = "INFO") -> None:
@@ -69,6 +71,7 @@ def get_env_config() -> dict:
             '1.0.0'
         ),
         'log_level': os.getenv('LOG_LEVEL', 'INFO'),
+        'api_key': os.getenv('ODS_API_KEY'),
     }
 
 
@@ -108,15 +111,40 @@ def create_ods_server(config: dict) -> MCPServer:
             preview = ', '.join(tool_names[:5])
             logger.info(f"Sample tools: {preview}{'...' if len(tool_names) > 5 else ''}")
 
-        # Phase 4: Set up executor with NoAuth (public API)
+        # Phase 4: Set up executor with NoAuth as default
+        # (auth will be swapped conditionally by ODSExecutionHandler)
         executor = APIExecutor(
             base_url=config['base_url'],
-            auth=NoAuth(),  # Public API - no authentication required
+            auth=NoAuth(),  # Default to no auth
             timeout=30,  # 30 second timeout
             max_retries=3,  # Retry failed requests up to 3 times
         )
 
-        logger.info("Created executor with NoAuth (public API)")
+        logger.info("Created executor with NoAuth (default)")
+
+        # Create auth resolver for conditional authentication
+        auth_resolver = ODSAuthResolver(api_key=config.get('api_key'))
+
+        if auth_resolver.has_api_key():
+            logger.info("API key configured for conditional authentication")
+        else:
+            logger.warning(
+                "No API key configured. Monitoring datasets will not be accessible. "
+                "Set ODS_API_KEY environment variable to enable."
+            )
+
+        # Get endpoints and create tool provider
+        endpoints = registry.get_all_endpoints()
+        from adapter.server.tool_provider import ToolProvider
+        tool_provider = ToolProvider(registry)
+
+        # Create custom execution handler with conditional auth
+        execution_handler = ODSExecutionHandler(
+            tool_provider=tool_provider,
+            executor=executor,
+            endpoints=endpoints,
+            auth_resolver=auth_resolver,
+        )
 
         # Create MCP server - endpoints are automatically included in registry
         server = MCPServer(
@@ -126,7 +154,11 @@ def create_ods_server(config: dict) -> MCPServer:
             executor=executor,
         )
 
+        # Replace the default execution handler with our custom one
+        server.execution_handler = execution_handler
+
         logger.info(f"MCP Server '{config['server_name']}' v{config['server_version']} ready")
+        logger.info("Conditional auth enabled (monitoring datasets require API key)")
         return server
 
     except Exception as e:
