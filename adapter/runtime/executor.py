@@ -179,6 +179,10 @@ class APIExecutor:
         headers = request_details["headers"].copy()
         query_params = request_details["query_params"].copy()
 
+        # Add default Accept header if not already present
+        if "Accept" not in headers:
+            headers["Accept"] = "application/json"
+
         # Check if endpoint requires authentication
         # If security is empty/None, endpoint is public and doesn't need auth
         requires_auth = endpoint.security and len(endpoint.security) > 0

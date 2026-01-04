@@ -102,6 +102,11 @@ class Normalizer:
         # Extract base path/servers for context
         base_info = self._extract_base_info(spec)
 
+        # Extract global security requirements
+        global_security = spec.get("security", [])
+        if not isinstance(global_security, list):
+            global_security = []
+
         # Process each path
         for path, path_item in paths.items():
             if not isinstance(path_item, dict):
@@ -122,6 +127,7 @@ class Normalizer:
                     path=path,
                     operation=operation,
                     base_info=base_info,
+                    global_security=global_security,
                 )
 
                 endpoints.append(endpoint)
@@ -156,6 +162,7 @@ class Normalizer:
         path: str,
         operation: Dict[str, Any],
         base_info: Dict[str, Any],
+        global_security: Optional[List] = None,
     ) -> CanonicalEndpoint:
         """
         Normalize a single OpenAPI operation (path + method).
@@ -165,6 +172,7 @@ class Normalizer:
             path: URL path
             operation: OpenAPI operation object
             base_info: Base API information
+            global_security: Global security requirements from spec
 
         Returns:
             CanonicalEndpoint instance
@@ -209,9 +217,15 @@ class Normalizer:
             tags = []
 
         # Extract security requirements
-        security = operation.get("security", [])
-        if not isinstance(security, list):
-            security = []
+        # If operation has explicit security (including empty list), use it
+        # Otherwise, fall back to global security
+        if "security" in operation:
+            security = operation.get("security", [])
+            if not isinstance(security, list):
+                security = []
+        else:
+            # No operation-level security, use global security
+            security = global_security if global_security is not None else []
 
         # Check if deprecated
         deprecated = operation.get("deprecated", False)

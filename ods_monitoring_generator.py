@@ -61,6 +61,13 @@ class ODSMonitoringGenerator:
         """
         monitoring_endpoints = []
 
+        # Find the generic export_records endpoint to extract common parameters
+        export_records_endpoint = None
+        for endpoint in catalog_endpoints:
+            if endpoint.name == 'export_records':
+                export_records_endpoint = endpoint
+                break
+
         for endpoint in catalog_endpoints:
             # Only clone dataset-specific operations (skip catalog-level operations)
             if not self._is_dataset_operation(endpoint):
@@ -68,6 +75,17 @@ class ODSMonitoringGenerator:
 
             # Clone and modify the endpoint
             monitoring_endpoint = self._clone_to_monitoring(endpoint)
+
+            # Merge common export parameters for format-specific endpoints
+            if export_records_endpoint and self._is_format_specific_export(endpoint):
+                self._merge_common_export_params(
+                    monitoring_endpoint,
+                    export_records_endpoint
+                )
+                logger.debug(
+                    f"Merged common export params into {monitoring_endpoint.name}"
+                )
+
             monitoring_endpoints.append(monitoring_endpoint)
             logger.debug(
                 f"Cloned {endpoint.name} -> {monitoring_endpoint.name}"
@@ -163,3 +181,56 @@ class ODSMonitoringGenerator:
             monitoring.tags = ['monitoring']
 
         return monitoring
+
+    def _is_format_specific_export(self, endpoint: CanonicalEndpoint) -> bool:
+        """
+        Check if an endpoint is a format-specific export endpoint.
+
+        Format-specific endpoints are like:
+        - export_records_csv
+        - export_records_parquet
+        - export_records_gpx
+
+        Args:
+            endpoint: Endpoint to check
+
+        Returns:
+            True if endpoint is format-specific export, False otherwise
+        """
+        format_specific_exports = [
+            'export_records_csv',
+            'export_records_parquet',
+            'export_records_gpx'
+        ]
+        return endpoint.name in format_specific_exports
+
+    def _merge_common_export_params(
+        self,
+        target_endpoint: CanonicalEndpoint,
+        source_endpoint: CanonicalEndpoint
+    ) -> None:
+        """
+        Merge common export parameters from source into target endpoint.
+
+        This adds parameters like limit, order_by, where, select, etc. from the
+        generic export_records endpoint into format-specific endpoints that are
+        missing them.
+
+        Args:
+            target_endpoint: Endpoint to add parameters to (modified in-place)
+            source_endpoint: Endpoint to copy parameters from (generic export_records)
+        """
+        # Parameters to merge (common export parameters)
+        common_export_params = {
+            'limit', 'offset', 'order_by', 'where', 'select',
+            'exclude', 'refine', 'group_by', 'lang', 'timezone'
+        }
+
+        # Get existing parameter names in target
+        existing_param_names = {p.name for p in target_endpoint.parameters}
+
+        # Copy missing common parameters from source
+        for param in source_endpoint.parameters:
+            if param.name in common_export_params and param.name not in existing_param_names:
+                # Deep copy the parameter to avoid shared references
+                target_endpoint.parameters.append(deepcopy(param))

@@ -82,12 +82,32 @@ class ExecutionHandler:
             # Tool names follow pattern: {api_name}_{endpoint_name} or just {endpoint_name}
             # We need to match against endpoint.name
 
+            # First try exact match (for tools without API prefix)
+            if tool.name in [ep.name for ep in self.endpoints]:
+                for endpoint in self.endpoints:
+                    if tool.name == endpoint.name:
+                        self._tool_endpoint_map[tool.name] = endpoint
+                        break
+                continue
+
+            # For prefixed tools, extract the endpoint name part
+            # by finding the longest matching endpoint name
+            best_match = None
+            best_match_length = 0
+
             for endpoint in self.endpoints:
-                # Exact match: tool name is either endpoint.name or {prefix}_{endpoint.name}
-                # This prevents false matches like "get_user" matching "get_user_profile"
-                if tool.name == endpoint.name or tool.name.endswith(f"_{endpoint.name}"):
-                    self._tool_endpoint_map[tool.name] = endpoint
-                    break
+                # Check if tool name ends with _{endpoint.name}
+                expected_suffix = f"_{endpoint.name}"
+                if tool.name.endswith(expected_suffix):
+                    # Prefer longer matches to avoid false positives
+                    # e.g., "ods_monitoring_get_records" should match "monitoring_get_records"
+                    # not "get_records"
+                    if len(endpoint.name) > best_match_length:
+                        best_match = endpoint
+                        best_match_length = len(endpoint.name)
+
+            if best_match:
+                self._tool_endpoint_map[tool.name] = best_match
 
         logger.debug(f"Built tool→endpoint map with {len(self._tool_endpoint_map)} entries")
 
