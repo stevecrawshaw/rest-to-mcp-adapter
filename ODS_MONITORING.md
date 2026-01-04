@@ -99,7 +99,7 @@ monitoring_endpoints = generator.generate_monitoring_endpoints(catalog_endpoints
 - **Name**: `export_records_parquet` → `monitoring_export_records_parquet`
 - **Security**: `[]` → `[{"apikey": []}]`
 - **Tags**: `["catalog", "export"]` → `["monitoring", "export"]`
-- **Description**: Prefixed with `[MONITORING API]`
+- **Description**: Enhanced with usage guidance that explains when to use monitoring vs catalog tools, which datasets require monitoring tools, and authentication requirements
 
 **Filtering logic:**
 - Only clones dataset-specific operations (those with `{dataset_id}` in path)
@@ -378,6 +378,101 @@ uv run python test_monitoring_simple.py
 2. Verify tool name contains "monitoring" keyword
 3. Check dataset_id matches `AUTH_REQUIRED_DATASETS`
 4. Enable DEBUG logging: `LOG_LEVEL=DEBUG`
+
+### Dataset Does Not Exist Error (Fixed in Jan 2026)
+
+**Symptom:** Monitoring datasets return "The requested dataset ods-api-monitoring does not exist"
+
+**Root Cause:**
+This was a critical bug in `adapter/server/execution_handler.py:74-112` where the tool-to-endpoint mapping logic was incorrectly matching monitoring tools to catalog endpoints.
+
+**The Problem:**
+The original mapping logic used a simple suffix match:
+```python
+if tool.name == endpoint.name or tool.name.endswith(f"_{endpoint.name}"):
+```
+
+This caused:
+- Tool: `ods_monitoring_get_records`
+- To match: `get_records` (catalog endpoint) ❌
+- Instead of: `monitoring_get_records` (monitoring endpoint) ✓
+
+Because catalog endpoints came first in the list, they were matched first, sending requests to `/catalog/datasets/ods-api-monitoring/records` instead of `/monitoring/datasets/ods-api-monitoring/records`.
+
+**Debug Evidence:**
+```
+Request URL: .../catalog/datasets/ods-api-monitoring/records  # Wrong!
+Status: 404 - dataset does not exist
+```
+
+Should be:
+```
+Request URL: .../monitoring/datasets/ods-api-monitoring/records  # Correct!
+Status: 200 - 368,883 records available
+```
+
+**The Fix:**
+Updated `_build_tool_endpoint_map()` to use **longest-match** logic:
+```python
+# Prefer longer matches to avoid false positives
+# e.g., "ods_monitoring_get_records" should match "monitoring_get_records"
+# not "get_records"
+if len(endpoint.name) > best_match_length:
+    best_match = endpoint
+    best_match_length = len(endpoint.name)
+```
+
+**Testing:**
+To verify monitoring endpoints are working correctly:
+
+1. **Test direct API access:**
+```python
+import requests
+response = requests.get(
+    'https://opendata.westofengland-ca.gov.uk/api/explore/v2.1/monitoring/datasets/ods-api-monitoring/records',
+    params={'apikey': 'YOUR_KEY', 'limit': 5}
+)
+print(f"Status: {response.status_code}")  # Should be 200
+```
+
+2. **Run debug script:**
+```bash
+uv run python debug_monitoring_call.py 2>&1 | grep "Request URL"
+```
+Should show `/monitoring/` in the URL, not `/catalog/`
+
+3. **Check MCP execution:**
+Enable DEBUG logging and verify:
+- `Endpoint requires authentication: monitoring_get_records` ✓
+- `Request URL: .../monitoring/datasets/...` ✓
+- `Status Code: 200` ✓
+
+**Note:** After applying this fix, Claude Code must be restarted for the MCP server to reload the updated code.
+
+### Enhanced Tool Descriptions (Jan 2026)
+
+**Problem:** MCP clients (like Claude) didn't have clear guidance on when to use monitoring tools vs catalog tools, leading to errors like calling `ods_get_records` with monitoring datasets.
+
+**Solution:** Enhanced tool descriptions to include explicit usage guidance:
+
+```
+[MONITORING API] Perform a query on dataset records.
+
+Use this tool for monitoring datasets (ods-api-monitoring, ods-datasets-monitoring).
+For public datasets, use the corresponding catalog tool without 'monitoring' in the name.
+This endpoint requires API key authentication.
+
+Endpoint: GET /monitoring/datasets/{dataset_id}/records
+```
+
+**Benefits:**
+1. Clear indication of which datasets require monitoring tools
+2. Explicit guidance to use catalog tools for public datasets
+3. Authentication requirements stated upfront
+4. Reduces tool selection errors by MCP clients
+
+**Implementation:**
+Updated `ods_monitoring_generator.py:145-152` to append usage guidance to all monitoring tool descriptions.
 
 ## Design Rationale
 

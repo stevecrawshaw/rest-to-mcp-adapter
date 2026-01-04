@@ -142,15 +142,14 @@ class ODSMonitoringGenerator:
         # Format matches OpenAPI security schemes
         monitoring.security = [{"apikey": []}]
 
-        # Update description
-        if monitoring.description:
-            monitoring.description = (
-                f"[MONITORING API] {monitoring.description}"
-            )
-        else:
-            monitoring.description = (
-                f"[MONITORING API] {endpoint.summary or 'Monitoring endpoint'}"
-            )
+        # Update description with usage guidance
+        base_desc = monitoring.description or endpoint.summary or 'Monitoring endpoint'
+        monitoring.description = (
+            f"[MONITORING API] {base_desc}\n\n"
+            f"Use this tool for monitoring datasets (ods-api-monitoring, ods-datasets-monitoring). "
+            f"For public datasets, use the corresponding catalog tool without 'monitoring' in the name. "
+            f"This endpoint requires API key authentication."
+        )
 
         # Update tags
         if monitoring.tags:
